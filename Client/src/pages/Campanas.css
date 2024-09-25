@@ -1,0 +1,331 @@
+/* Fondo de la página */
+.dashboard-container {
+    padding: 20px;
+    color: white;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.button-group {
+    display: flex;
+    gap: 15px;
+}
+
+.crear-campana-btn, .descargar-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 1em;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.crear-campana-btn:hover, .descargar-btn:hover {
+    background-color: #0056b3;
+    transition: background-color 0.3s ease;
+}
+
+/* Contenedor de la tarjeta */
+.cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* Ajusta minmax a 320px */
+    gap: 25px; /* Aumenta el gap para mayor espacio entre los elementos */
+    margin-top: 20px;
+}
+
+/* Fondo de la tarjeta */
+.card {
+    background-color: #111111;
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #444b6b;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    min-width: 300px;
+    min-height: 250px;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease; /* Transiciones suaves */
+}
+
+/* Estilo especial para tarjetas completadas */
+.card-completed {
+    box-shadow: 0px 0px 15px 5px rgba(40, 167, 69, 0.6); /* Sombra verde */
+    border-color: #28a745; /* Borde verde */
+}
+
+/* Header de la tarjeta */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.fecha {
+    color: #a3a3a3;
+    font-size: 0.9em;
+    font-weight: 400;
+}
+
+.hora {
+    color: #a3a3a3;
+    font-size: 0.9em;
+    font-weight: 400;
+}
+
+/* Nombre de la campaña alineado a la izquierda */
+.card-campaign-name {
+    margin-bottom: 10px;
+}
+
+.card-campaign-name h3 {
+    font-size: 1.2em;
+    font-weight: 600;
+    text-align: left;
+}
+
+/* Cuerpo de la tarjeta reorganizado en dos filas */
+.card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+
+/* Grupo de iconos en dos filas */
+.status-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Dos columnas */
+    grid-template-rows: 1fr 1fr; /* Dos filas */
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #212121;
+    padding: 10px 15px; 
+    border-radius: 5px;
+    font-size: 1.1em;
+    font-weight: bold;
+    min-width: 100px;
+}
+
+/* Ajuste de colores */
+.success {
+    color: #00ff00;
+}
+
+.error {
+    color: #ff4c4c;
+}
+
+.pendiente {
+    color: #ffc107;
+    background-color: #212121; 
+}
+
+.total {
+    color: white; 
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+/* Pie de la tarjeta */
+.card-footer {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Botón de eliminar */
+.delete-button {
+    background-color: transparent;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5em;
+}
+
+.delete-button:hover {
+    color: #ff4c4c;
+}
+
+/* Fondo del modal */
+.custom-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* Contenido del modal */
+.custom-modal {
+    background: #222;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 90%;
+    width: 400px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    color: white;
+    position: relative;
+}
+
+/* Header del modal */
+.custom-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background-color: transparent;
+    border: none;
+    color: white;
+    font-size: 1.5em;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.close-btn:hover {
+    color: #ff4c4c;
+}
+
+/* Campos de formulario */
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.input-field, .textarea-field, .select-field {
+    width: 100%;
+    padding: 12px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    font-size: 1em;
+    background-color: #333;
+    color: #fff;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+    max-width: 100%;
+    margin-right: 0;
+}
+
+.file-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.file-input-label {
+    background-color: #007bff;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    font-weight: bold;
+    border: none;
+}
+
+.file-input-label:hover {
+    background-color: #0056b3;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+.file-selected {
+    color: #aaa;
+    font-size: 0.85em;
+}
+
+.input-field:focus, .textarea-field:focus, .select-field:focus {
+    border: 1px solid #007bff;
+    outline: none;
+}
+
+.textarea-field {
+    height: 120px;
+    resize: vertical;
+    max-width: 100%;
+}
+
+.custom-modal .char-counter {
+    font-size: 0.75em;
+    color: #bbb;
+    text-align: right;
+    margin-top: -10px;
+}
+
+.record-count {
+    font-size: 0.85em;
+    color: #aaa;
+    margin-top: 5px;
+}
+
+.custom-modal-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.guardar-btn, .cancelar-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    color: white;
+}
+
+.guardar-btn {
+    background-color: #28a745;
+}
+
+.cancelar-btn {
+    background-color: #dc3545;
+}
+
+.guardar-btn:hover, .cancelar-btn:hover {
+    opacity: 0.8;
+}
+
+/* Estilo especial para tarjetas en estado pendiente */
+.card-pending {
+    box-shadow: 0px 0px 15px 5px rgba(243, 156, 18, 0.6); /* Sombra naranja */
+    border-color: #f39c12; /* Borde naranja */
+}

@@ -1,0 +1,90 @@
+/* Estilo general del sidebar */
+.sidebar {
+  height: 100vh;
+  width: 250px;
+  background-color: #111111;
+  color: #ffffff;
+  padding: 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sidebar-icons {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sidebar-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.sidebar-header .logo {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 10px;
+}
+
+.sidebar-header h4 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: #ffffff;
+}
+
+.menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  font-size: 16px;
+  color: #ffffff;
+  text-decoration: none;
+  transition: background 0.3s ease, color 0.3s ease;
+  border-radius: 8px;
+}
+
+/* Resalta la opción activa */
+.menu-item.active {
+  background-color: #444b6b;
+  color: #ffffff;
+}
+
+/* Efecto de hover mejorado */
+.menu-item:hover {
+  background-color: #3a4166;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.menu-item svg {
+  font-size: 20px;
+}
+
+.menu-item span {
+  margin-left: 10px;
+}
+
+.bottom-section {
+  margin-top: auto;
+}
+
+.logout {
+  margin-bottom: 20px;
+}

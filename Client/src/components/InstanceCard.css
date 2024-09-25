@@ -1,0 +1,180 @@
+/* Contenedor de la tarjeta */
+.instance-card-container {
+    position: relative;
+}
+
+/* Fondo de la tarjeta */
+.instance-card-background {
+    background-color: #111111;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #444b6b;
+    width: 100%;
+    max-width: 100%;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+    position: relative;
+}
+
+/* Contenido de la tarjeta que se difumina */
+.instance-card-content.deleting {
+    filter: blur(2px); /* Efecto de difuminado */
+    pointer-events: none; /* Deshabilitar interacción */
+}
+
+/* Superposición que se muestra durante la eliminación */
+.deleting-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 16px;
+    z-index: 1;
+    pointer-events: none; /* Deshabilitar interacción con la superposición */
+}
+
+.instance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.instance-name {
+    font-size: 1.4em;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.profile-section {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.profile-pic {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin-right: 15px;
+}
+
+.default-pic {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #444b6b;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 20px;
+    margin-right: 15px;
+}
+
+.instance-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.instance-info strong {
+    font-size: 1.2em;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.phone-number {
+    font-size: 1em;
+    color: #a3a3a3;
+    margin-top: 5px;
+    font-weight: 400;
+}
+
+.qr-button {
+    margin-left: 10px;
+    background-color: transparent;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.instance-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+}
+
+.status-container {
+    display: flex;
+    align-items: center;
+}
+
+.country-flag {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-left: 10px;
+}
+
+.connected {
+    background-color: #212121;
+    color: #00ff00;
+    padding: 8px 15px;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.disconnected {
+    background-color: #212121;
+    color: #ff4c4c;
+    padding: 8px 15px;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.connected .status-indicator,
+.disconnected .status-indicator {
+    margin-left: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.connected .status-indicator {
+    background-color: #00ff00;
+}
+
+.disconnected .status-indicator {
+    background-color: #ff4c4c;
+}
+
+.delete-button {
+    background-color: transparent;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.connected,
+.disconnected {
+    font-weight: 500;
+}

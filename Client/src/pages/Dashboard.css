@@ -1,0 +1,20 @@
+.dashboard-container {
+    padding: 20px;
+    color: white;
+  }
+  
+  .dashboard-container h1 {
+    font-size: 2em;
+    margin-bottom: 10px;
+  }
+  
+  /* .dashboard-container p {
+    font-size: 1.2em;
+  }
+   */
+  /* Asegura que el texto de "Registros detectados" no tome el estilo de dashboard.css */
+.custom-modal .record-count {
+  font-size: 0.9em !important;  /* Especificamos el tamaño */
+  color: #aaa;
+  margin-top: 5px;
+}

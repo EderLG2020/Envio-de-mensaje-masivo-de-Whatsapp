@@ -1,0 +1,120 @@
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7); /* Fondo negro con opacidad */
+    backdrop-filter: blur(5px); /* Desenfoque del fondo */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #111111; /* Fondo más oscuro */
+    padding: 30px;
+    border-radius: 12px; /* Bordes curvos */
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Borde claro */
+    width: 350px; /* Ajustamos el ancho */
+    max-width: 90%;
+    text-align: center;
+    box-shadow: none; /* Sin sombra */
+    position: relative; /* Necesario para la posición del botón de cierre */
+}
+
+.modal-content h3 {
+    margin-bottom: 15px;
+    color: white;
+    font-size: 18px; /* Tamaño más pequeño y uniforme */
+    font-weight: 600; /* Negrita */
+}
+
+.modal-content input {
+    width: calc(100% - 20px); /* Ajustamos el ancho */
+    padding: 10px;
+    margin-bottom: 20px;
+    border: none;
+    border-radius: 4px; /* Ligeramente redondeado */
+    background: #2e2e2e;
+    color: white;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.error-message {
+    color: #ff4c4c;
+    margin-bottom: 15px;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px; /* Ligero redondeo */
+    cursor: pointer;
+    font-weight: 600;
+    width: 48%;
+    font-size: 14px;
+}
+
+.btn-cancel {
+    background: #ff4c4c;
+    color: white;
+}
+
+.btn-confirm {
+    background: #28a745;
+    color: white;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.qr-image {
+    width: 300px;
+    height: 300px; /* Hacemos que el QR sea más compacto */
+    margin: 20px auto;
+    display: block;
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background-color: #25D366; /* Verde de WhatsApp */
+    border: 1px solid #25D366; /* Borde verde */
+    border-radius: 8px; /* Bordes redondeados */
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #fff; /* Color de la "X" */
+    z-index: 1001;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.modal-close:hover {
+    background-color: #1EBE5B; /* Verde más oscuro al pasar el mouse */
+    border-color: #1EBE5B;
+}

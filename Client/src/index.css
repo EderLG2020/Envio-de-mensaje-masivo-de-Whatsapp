@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+body {
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Modo Oscuro */
+body.dark-mode {
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+.sidebar.dark {
+  background-color: #333a56;
+  color: #ffffff;
+}
+
+.sidebar.dark .menu-item:hover {
+  background-color: #444b6b;
+}
+
+/* Modo Claro */
+body.light-mode {
+  background-color: #f0f0f0;
+  color: #000000;
+}
+
+.sidebar.light {
+  background-color: #ffffff;
+  color: #333;
+}
+
+.sidebar.light .menu-item:hover {
+  background-color: #e0e0e0;
+}
+
+/* Estilos Generales */
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  font-size: 16px;
+  text-decoration: none;
+  transition: background 0.3s ease;
+}
+
+.menu-item svg {
+  font-size: 20px;
+}
+
+.menu-item span {
+  margin-left: 10px;
+}

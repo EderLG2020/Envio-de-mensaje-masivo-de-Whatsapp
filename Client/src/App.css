@@ -1,0 +1,77 @@
+.app-container {
+  display: flex;
+  background-color: #010101;
+  min-height: 100vh;
+}
+
+.sidebar.closed {
+  width: 80px;
+}
+
+.sidebar-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 50px;
+}
+
+.logo {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 10px;
+}
+
+.logo-text {
+  font-size: 18px;
+  text-align: center;
+}
+
+.hamburger {
+  font-size: 24px;
+  cursor: pointer;
+  position: absolute;
+  top: 20px;
+  left: 20px;
+}
+
+.menu {
+  list-style: none;
+  padding: 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 10px;
+  font-size: 16px;
+  color: white;
+  text-decoration: none;
+  transition: background 0.3s ease;
+}
+
+.menu-item:hover {
+  background-color: #25274d;
+  border-radius: 5px;
+}
+
+.menu-item span {
+  margin-left: 10px;
+}
+
+.menu-item svg {
+  font-size: 20px;
+}
+
+.main-content {
+  margin-left: 250px;
+  padding: 40px; /* Aumentamos el padding para dar más espacio respecto al sidebar */
+  width: calc(100% - 250px); /* Ajuste dinámico basado en el sidebar */
+  transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+/* Ajuste cuando el sidebar está cerrado */
+.sidebar.closed + .main-content {
+  margin-left: 80px;
+  width: calc(100% - 80px);
+  padding: 40px; /* Mantener el espacio cuando el sidebar está cerrado */
+}
