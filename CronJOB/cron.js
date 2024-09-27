@@ -1,16 +1,18 @@
 const axios = require('axios');
 const fs = require('fs');
 const logFilePath = './envio.log'; // Archivo para registrar mensajes
+let inProgressMessages = new Set(); // Almacenar mensajes en proceso
+let instances = []; // Lista de instancias activas
 
 // Función para obtener el tiempo actual formateado
 function getCurrentTime() {
     return new Date().toLocaleTimeString();
 }
 
-// Función para escribir en el archivo de log
-function writeToLog(status, number, messageId) {
+// Función para escribir en el archivo de log, incluyendo la instancia
+function writeToLog(status, number, messageId, instanceName) {
     const currentTime = new Date().toLocaleString();
-    const logMessage = `[${currentTime}] Número: ${number} - ID Mensaje: ${messageId} - Estado: ${status}\n`;
+    const logMessage = `[${currentTime}] Número: ${number} - ID Mensaje: ${messageId} - Estado: ${status} - Instancia: ${instanceName}\n`;
     fs.appendFileSync(logFilePath, logMessage, (err) => {
         if (err) console.error('Error al escribir en el archivo de log:', err.message);
     });
@@ -54,15 +56,15 @@ async function getActiveInstances() {
     try {
         console.log(`[${getCurrentTime()}] 🔍 Consultando instancias activas...`);
         const response = await axios.get('http://localhost:5000/api/instances');
-        const instances = response.data.filter(instance => instance.connectionStatus === 'open');
+        const activeInstances = response.data.filter(instance => instance.connectionStatus === 'open');
 
-        if (instances.length > 0) {
-            console.log(`[${getCurrentTime()}] 🟢 Instancias activas encontradas: ${instances.map(i => i.name).join(', ')}`);
+        if (activeInstances.length > 0) {
+            console.log(`[${getCurrentTime()}] 🟢 Instancias activas encontradas: ${activeInstances.map(i => i.name).join(', ')}`);
         } else {
             console.log(`[${getCurrentTime()}] ⚪ No se encontraron instancias activas.`);
         }
 
-        return instances.map(instance => ({
+        instances = activeInstances.map(instance => ({
             name: instance.name,
             ownerJid: instance.ownerJid,
             token: instance.token,
@@ -70,12 +72,12 @@ async function getActiveInstances() {
         }));
     } catch (error) {
         console.error(`[${getCurrentTime()}] ⚠️ Error al obtener instancias: ${error.message}`);
-        return [];
+        instances = []; // En caso de error, vaciar la lista de instancias
     }
 }
 
-// Obtener mensajes de la cola
-async function getQueueMessages(lastMessageId) {
+// Obtener el próximo mensaje de la cola de envío
+async function getNextQueueMessage() {
     try {
         const response = await axios.get('http://188.245.38.255:5000/api/sendwhatsapp/colaenvio');
 
@@ -83,8 +85,8 @@ async function getQueueMessages(lastMessageId) {
             return null;
         }
 
-        if (response.data.idSendmessage === lastMessageId) {
-            return null;
+        if (inProgressMessages.has(response.data.idSendmessage)) {
+            return null; // Si ya está en progreso, ignorar
         }
 
         console.log(`[${getCurrentTime()}] 📬 Nuevo mensaje en la cola de envío: ${response.data.idSendmessage}`);
@@ -114,17 +116,16 @@ async function sendMessage(instance, messageData) {
 
         if (response.status === 201) {
             console.log(`[${getCurrentTime()}] ✅ Mensaje enviado correctamente desde ${instance.name}`);
-            writeToLog('Enviado correctamente', messageData.tenvio, messageData.idSendmessage);
+            writeToLog('Enviado correctamente', messageData.tenvio, messageData.idSendmessage, instance.name);
         } else {
             console.log(`[${getCurrentTime()}] ⚠️ Mensaje enviado con advertencia desde ${instance.name}, status: ${response.status}`);
-            writeToLog('Enviado con advertencia', messageData.tenvio, messageData.idSendmessage);
+            writeToLog('Enviado con advertencia', messageData.tenvio, messageData.idSendmessage, instance.name);
         }
 
         await confirmMessageSend(response.status, messageData.idSendmessage, instance.name);
-
     } catch (error) {
         console.error(`[${getCurrentTime()}] ❌ Error al enviar mensaje desde ${instance.name}: ${error.message}`);
-        writeToLog('Error en el envío', messageData.tenvio, messageData.idSendmessage);
+        writeToLog('Error en el envío', messageData.tenvio, messageData.idSendmessage, instance.name);
 
         if (error.response && error.response.status === 400) {
             await confirmMessageSend(400, messageData.idSendmessage, instance.name);
@@ -133,6 +134,8 @@ async function sendMessage(instance, messageData) {
         const errorPause = getExtendedRandomTime();
         console.log(`[${getCurrentTime()}] ⏳ Pausando después de error por ${(errorPause / 1000).toFixed(2)} segundos para evitar detección.`);
         await new Promise(resolve => setTimeout(resolve, errorPause));
+    } finally {
+        inProgressMessages.delete(messageData.idSendmessage); // Eliminar el mensaje de la lista de "en proceso"
     }
 }
 
@@ -151,44 +154,42 @@ async function confirmMessageSend(statusCode, idSendmessage, instanceName) {
     }
 }
 
-// Función principal para gestionar el envío de mensajes
+// Función principal para gestionar el envío de mensajes de forma concurrente
 async function manageMessageSending() {
-    let instances = await getActiveInstances();
-    if (instances.length === 0) return;
-
-    let lastMessageId = null;
+    await getActiveInstances(); // Consultar las instancias activas inicialmente
     console.log(`[${getCurrentTime()}] 🟢 Iniciando la gestión de envío de mensajes...`);
 
+    // Controlar envíos concurrentes por instancia
     setInterval(async () => {
         try {
+            await getActiveInstances(); // Consultar las instancias activas antes de cada ciclo
+            if (instances.length === 0) {
+                console.log(`[${getCurrentTime()}] ⚠️ No hay instancias disponibles.`);
+                return;
+            }
+
             for (const instance of instances) {
                 if (instance.messagesSentCount >= 7) {
                     const longBreak = simulateOccasionalBreak();
                     if (longBreak > 0) {
                         console.log(`[${getCurrentTime()}] 🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
-                    } else {
-                        console.log(`[${getCurrentTime()}] 🛑 La instancia ${instance.name} tomará un descanso breve.`);
                     }
                     instance.messagesSentCount = 0;
                     await new Promise(resolve => setTimeout(resolve, longBreak));
                     continue;
                 }
 
-                const messageData = await getQueueMessages(lastMessageId);
-
+                const messageData = await getNextQueueMessage();
                 if (messageData) {
-                    lastMessageId = messageData.idSendmessage;
+                    inProgressMessages.add(messageData.idSendmessage); // Añadir a "en proceso"
                     await sendMessage(instance, messageData);
                     instance.messagesSentCount++;
-                    const nextDelay = getExtendedRandomTime();
-                    console.log(`[${getCurrentTime()}] ⏳ La instancia ${instance.name} esperará ${(nextDelay / 1000).toFixed(2)} segundos antes de enviar otro mensaje.`);
-                    await new Promise(resolve => setTimeout(resolve, nextDelay));
                 }
             }
         } catch (error) {
             console.error(`[${getCurrentTime()}] ⚠️ Error durante la gestión de envío de mensajes: ${error.message}`);
         }
-    }, getExtendedRandomTime());
+    }, 3000); // Verificar cada 3 segundos
 }
 
 // Iniciar el proceso de envío
