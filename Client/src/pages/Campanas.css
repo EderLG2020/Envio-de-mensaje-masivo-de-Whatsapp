@@ -1,52 +1,67 @@
+@import url(../App.css);
+
 /* Fondo de la página */
-.dashboard-container {
-    padding: 20px;
-    color: white;
-}
+/* .dashboard-container {
+      color: var(--color-white);;
+} */
 
 /* Header */
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 100000000;
+    background-color: #01010172;
+    width: calc(100% - 320px);
+    padding: 10px 40px;
+    backdrop-filter: blur(20px);
 }
 
 .button-group {
     display: flex;
-    gap: 15px;
+    gap: 10px;
 }
 
-.crear-campana-btn, .descargar-btn {
-    background-color: #007bff;
-    color: white;
+.crear-campana-btn,
+.descargar-btn {
+    border: 2px solid rgb(55, 55, 55);
+    background-color: var(--color-sidebar-card);
+    color: var(--color-white);
     padding: 10px 20px;
-    border: none;
     cursor: pointer;
-    border-radius: 5px;
+    border-radius: 12px;
     font-size: 1em;
     text-transform: uppercase;
     font-weight: bold;
+    transition: border 0.3s ease;
 }
 
-.crear-campana-btn:hover, .descargar-btn:hover {
-    background-color: #0056b3;
-    transition: background-color 0.3s ease;
+.crear-campana-btn:hover,
+.descargar-btn:hover {
+    border: 2px solid #878787;
 }
 
 /* Contenedor de la tarjeta */
 .cards-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* Ajusta minmax a 320px */
-    gap: 25px; /* Aumenta el gap para mayor espacio entre los elementos */
-    margin-top: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    /* Ajusta minmax a 320px */
+    gap: 25px;
+    /* Aumenta el gap para mayor espacio entre los elementos */
+    margin-top: 15px;
+    margin-bottom: 20px;
 }
 
 /* Fondo de la tarjeta */
 .card {
-    background-color: #111111;
-    color: white;
+    background-color: var(--color-sidebar-card);
+    color: var(--color-white);
+    ;
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 18px;
     border: 1px solid #444b6b;
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
     display: flex;
@@ -55,13 +70,8 @@
     position: relative;
     min-width: 300px;
     min-height: 250px;
-    transition: box-shadow 0.3s ease, border-color 0.3s ease; /* Transiciones suaves */
-}
-
-/* Estilo especial para tarjetas completadas */
-.card-completed {
-    box-shadow: 0px 0px 15px 5px rgba(40, 167, 69, 0.6); /* Sombra verde */
-    border-color: #28a745; /* Borde verde */
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    /* Transiciones suaves */
 }
 
 /* Header de la tarjeta */
@@ -69,30 +79,70 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 5px;
 }
 
+.box-data {
+    display: flex;
+    gap: 15px;
+}
+
+/* .status-icon {
+    color: var(--color-white);
+} */
+
+/* .status-icon:hover {
+    transform: scale(1.1);
+} */
+
 .fecha {
-    color: #a3a3a3;
+    color: var(--color-login-grey);
     font-size: 0.9em;
     font-weight: 400;
 }
 
 .hora {
-    color: #a3a3a3;
+    color: var(--color-login-grey);
     font-size: 0.9em;
     font-weight: 400;
 }
 
 /* Nombre de la campaña alineado a la izquierda */
-.card-campaign-name {
-    margin-bottom: 10px;
-}
-
 .card-campaign-name h3 {
     font-size: 1.2em;
     font-weight: 600;
     text-align: left;
+}
+
+.box-view {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.view {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    cursor: pointer;
+    margin: 0px 0px 10px 0px;
+    transition: color 0.3s ease;
+}
+
+.box-buttons button {
+    color: var(--color-white);
+}
+
+.box-buttons button:hover {
+    transform: scale(1.1);
+}
+
+.view:hover {
+    color: var(--color-login-grey);
+}
+
+.view p {
+    margin: 0px;
 }
 
 /* Cuerpo de la tarjeta reorganizado en dos filas */
@@ -106,10 +156,11 @@
 /* Grupo de iconos en dos filas */
 .status-group {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Dos columnas */
-    grid-template-rows: 1fr 1fr; /* Dos filas */
+    grid-template-columns: 1fr 1fr;
+    /* Dos columnas */
+    grid-template-rows: 1fr 1fr;
+    /* Dos filas */
     gap: 10px;
-    margin-bottom: 10px;
 }
 
 .status-item {
@@ -117,7 +168,7 @@
     align-items: center;
     justify-content: space-between;
     background-color: #212121;
-    padding: 10px 15px; 
+    padding: 10px 15px;
     border-radius: 5px;
     font-size: 1.1em;
     font-weight: bold;
@@ -130,16 +181,17 @@
 }
 
 .error {
-    color: #ff4c4c;
+    color: var(--color-error-cancel);
 }
 
 .pendiente {
     color: #ffc107;
-    background-color: #212121; 
+    background-color: #212121;
 }
 
 .total {
-    color: white; 
+    color: var(--color-white);
+    ;
     padding: 10px 15px;
     border-radius: 5px;
     font-size: 1.1em;
@@ -156,14 +208,15 @@
 /* Botón de eliminar */
 .delete-button {
     background-color: transparent;
-    color: white;
+    color: var(--color-white);
     border: none;
     cursor: pointer;
     font-size: 1.5em;
+    transition: color 0.3s ease;
 }
 
 .delete-button:hover {
-    color: #ff4c4c;
+    color: var(--color-error-cancel);
 }
 
 /* Fondo del modal */
@@ -178,18 +231,19 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 100000000;
 }
 
 /* Contenido del modal */
 .custom-modal {
-    background: #222;
+    background: var(--color-sidebar-card);
+    border: 2px solid rgb(55, 55, 55);
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 12px;
     max-width: 90%;
     width: 400px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    color: white;
+    box-shadow: 0 10px 1px rgba(0, 0, 0, 0.5);
+    color: var(--color-white);
     position: relative;
 }
 
@@ -207,14 +261,15 @@
     right: 15px;
     background-color: transparent;
     border: none;
-    color: white;
-    font-size: 1.5em;
+    color: var(--color-white);
+    font-size: 1.2em;
     cursor: pointer;
     font-weight: bold;
+    transition: color 0.3s ease;
 }
 
 .close-btn:hover {
-    color: #ff4c4c;
+    color: var(--color-error-cancel);
 }
 
 /* Campos de formulario */
@@ -228,18 +283,36 @@ label {
     margin-bottom: 5px;
 }
 
-.input-field, .textarea-field, .select-field {
+.input-field,
+.textarea-field,
+.select-field {
     width: 100%;
     padding: 12px;
-    border-radius: 5px;
-    border: 1px solid transparent;
+    border-radius: 12px;
     font-size: 1em;
-    background-color: #333;
+    background-color: var(--color-sidebar-card);
+    border: 2px solid var(--color-button-grey);
     color: #fff;
     box-sizing: border-box;
     margin-bottom: 10px;
     max-width: 100%;
     margin-right: 0;
+    font-family: 'poppins';
+    font-size: 14px;
+    outline: none;
+    transition: border 0.3s ease;
+}
+
+.input-field:hover,
+.textarea-field:hover,
+.select-field:hover {
+    border: 2px solid var(--color-login-grey);
+}
+
+.input-field:focus,
+.textarea-field:focus,
+.select-field:focus {
+    border: 2px solid var(--color-login-grey) !important;
 }
 
 .file-input-wrapper {
@@ -249,8 +322,8 @@ label {
 }
 
 .file-input-label {
-    background-color: #007bff;
-    color: white;
+    background-color: var(--color-button-grey);
+    color: var(--color-white);
     padding: 8px 15px;
     border-radius: 5px;
     cursor: pointer;
@@ -261,7 +334,7 @@ label {
 }
 
 .file-input-label:hover {
-    background-color: #0056b3;
+    background-color: var(--color-login-grey);
 }
 
 input[type="file"] {
@@ -273,10 +346,12 @@ input[type="file"] {
     font-size: 0.85em;
 }
 
-.input-field:focus, .textarea-field:focus, .select-field:focus {
+/* .input-field:focus,
+.textarea-field:focus,
+.select-field:focus {
     border: 1px solid #007bff;
     outline: none;
-}
+} */
 
 .textarea-field {
     height: 120px;
@@ -303,29 +378,94 @@ input[type="file"] {
     margin-top: 20px;
 }
 
-.guardar-btn, .cancelar-btn {
+.guardar-btn,
+.cancelar-btn {
     padding: 10px 20px;
     border: none;
-    border-radius: 5px;
+    border-radius: 12px;
     cursor: pointer;
     font-size: 1em;
-    color: white;
+    color: var(--color-white);
+    ;
 }
 
 .guardar-btn {
-    background-color: #28a745;
+    background-color: var(--color-succes-confirm);
 }
 
 .cancelar-btn {
     background-color: #dc3545;
 }
 
-.guardar-btn:hover, .cancelar-btn:hover {
+.guardar-btn:hover,
+.cancelar-btn:hover {
     opacity: 0.8;
 }
 
+.content {
+    max-height: 0;
+    /* Inicialmente está colapsado */
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.content.show {
+    max-height: 500px;
+    /* Ajusta según lo necesario */
+    opacity: 1;
+}
+
 /* Estilo especial para tarjetas en estado pendiente */
+
+.card-pause {
+    box-shadow: 0px 0px 10px 1px #bfa70d;
+    background: radial-gradient(circle at 50% -50%, #f3d512 1%, var(--color-sidebar-card) 55%);
+    border: 1px solid #f3d512;
+}
+
 .card-pending {
-    box-shadow: 0px 0px 15px 5px rgba(243, 156, 18, 0.6); /* Sombra naranja */
-    border-color: #f39c12; /* Borde naranja */
+    box-shadow: 0px 0px 10px 1px #945900;
+    background: radial-gradient(circle at 50% -50%, #ff9800 1%, var(--color-sidebar-card) 55%);
+    border: 1px solid #ff9800;
+}
+
+.card-cancel {
+    box-shadow: 0px 0px 10px 1px #8d2f24;
+    background: radial-gradient(circle at 50% -50%, #e74c3c 1%, var(--color-sidebar-card) 55%);
+    border: 1px solid #e74c3c;
+}
+
+.card-sending {
+    box-shadow: 0px 0px 10px 1px #21608a;
+    background: radial-gradient(circle at 50% -50%, #3498db 1%, var(--color-sidebar-card) 55%);
+    border: 1px solid #3498db;
+}
+
+/* Estilo especial para tarjetas completadas */
+.card-completed {
+    box-shadow: 0px 0px 10px 1px #166437;
+    background: radial-gradient(circle at 50% -50%, #27ae60 1%, var(--color-sidebar-card) 55%);
+    border-color: #27ae60;
+    /* Borde verde */
+}
+
+.leyend-pause svg {
+    color: #f3d512;
+}
+
+.leyend-send svg {
+    color: #ff9800;
+}
+
+.leyend-cancel svg {
+    color: #e74c3c;
+}
+
+.leyend-sending svg {
+    color: #3498db;
+}
+
+.leyend-finalized svg {
+    color: #27ae60;
 }

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import './Modal.css';
+import { FaWindowClose } from 'react-icons/fa';
+
 
 const Modal = ({ isOpen, onClose, onSubmit, errorMessage, isSubmitting, children, title }) => {
     const [instanceName, setInstanceName] = React.useState('');
@@ -38,7 +40,7 @@ const Modal = ({ isOpen, onClose, onSubmit, errorMessage, isSubmitting, children
             <div className="modal-content">
                 {/* Botón de cierre */}
                 <button className="modal-close" onClick={handleClose}>
-                    X
+                    <FaWindowClose />
                 </button>
                 {/* Si hay un título dinámico, lo mostramos */}
                 {title && <h3>{title}</h3>}

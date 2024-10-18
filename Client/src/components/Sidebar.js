@@ -1,28 +1,41 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { AiOutlineDashboard, AiOutlineAppstore, AiOutlineThunderbolt, AiOutlineUser } from 'react-icons/ai';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { AiOutlineDashboard, AiOutlineAppstore, AiOutlineThunderbolt, AiOutlineLogout } from 'react-icons/ai';
 import { FaCog, FaSignOutAlt } from 'react-icons/fa';
 import './Sidebar.css';
 import logo from '../assets/logo.png';
 
 const Sidebar = () => {
+    // Hook para redirigir
+    const navigate = useNavigate();
+
+    // Función para manejar el logout
+    const handleLogout = () => {
+        // Limpiar localStorage
+        localStorage.clear(); // Borra todo el localStorage. Puedes usar removeItem('token') si solo quieres borrar el token.
+
+        // Redirigir al usuario a la ruta raíz "/"
+        navigate('/');
+    };
+
+
     return (
         <div className="sidebar">
             <div className="sidebar-icons">
                 <div className="sidebar-header">
                     <img src={logo} alt="WSP Masivo Logo" className="logo" />
-                    <h4>WSP Masivo</h4>
+                    <h4>Masivo</h4>
                 </div>
                 <ul className="menu">
-                    <li>
+                    {/* <li>
                         <NavLink
-                            to="/"
+                            to="/dashboard"
                             className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
                         >
                             <AiOutlineDashboard />
                             <span>Dashboard</span>
                         </NavLink>
-                    </li>
+                    </li> */}
                     <li>
                         <NavLink
                             to="/instancias"
@@ -44,7 +57,7 @@ const Sidebar = () => {
                 </ul>
                 <div className="bottom-section">
                     <ul className="menu">
-                        <li>
+                        {/* <li>
                             <NavLink
                                 to="/profile"
                                 className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
@@ -52,8 +65,8 @@ const Sidebar = () => {
                                 <AiOutlineUser />
                                 <span>Perfil</span>
                             </NavLink>
-                        </li>
-                        <li>
+                        </li> */}
+                        {/* <li>
                             <NavLink
                                 to="/settings"
                                 className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
@@ -61,15 +74,12 @@ const Sidebar = () => {
                                 <FaCog />
                                 <span>Configuración</span>
                             </NavLink>
-                        </li>
+                        </li> */}
                         <li className="logout">
-                            <NavLink
-                                to="/logout"
-                                className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
-                            >
-                                <FaSignOutAlt />
+                            <button onClick={handleLogout} className="menu-item logout-button">
+                                <AiOutlineLogout />
                                 <span>Cerrar Sesión</span>
-                            </NavLink>
+                            </button>
                         </li>
                     </ul>
                 </div>

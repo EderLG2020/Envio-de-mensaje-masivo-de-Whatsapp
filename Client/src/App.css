@@ -1,7 +1,18 @@
+:root {
+  --color-body: #010101;
+  --color-sidebar-card: #111111;
+  --color-login-grey: #878787;
+  --color-button-grey: rgb(55, 55, 55);
+  --color-white: #ffffff;
+  --color-button-green: #ff0000;
+  --color-button-green-hover: #bb0101;
+  --color-green-dark: #122618;
+  --color-logout: #ff0000;
+  --color-error-cancel: #ff4c4c;
+  --color-succes-confirm: #28a745;
+}
+
 .app-container {
-  display: flex;
-  background-color: #010101;
-  min-height: 100vh;
 }
 
 .sidebar.closed {
@@ -12,7 +23,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 50px;
+  margin-bottom: 30px;
 }
 
 .logo {
@@ -35,6 +46,9 @@
 }
 
 .menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   list-style: none;
   padding: 0;
 }
@@ -42,16 +56,20 @@
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 15px 10px;
+  padding: 10px 25px;
   font-size: 16px;
-  color: white;
+  color: #ffffff;
   text-decoration: none;
-  transition: background 0.3s ease;
+  transition: border 0.3s ease, color 0.3s ease;
+  border-radius: 16px;
+  border: 2px solid transparent;
+  background-color: transparent;
 }
 
 .menu-item:hover {
-  background-color: #25274d;
-  border-radius: 5px;
+  background-color: transparent;
+  border-radius: 16px;
+  color: var(--color-button-green);
 }
 
 .menu-item span {
@@ -63,10 +81,15 @@
 }
 
 .main-content {
-  margin-left: 250px;
-  padding: 40px; /* Aumentamos el padding para dar más espacio respecto al sidebar */
-  width: calc(100% - 250px); /* Ajuste dinámico basado en el sidebar */
+  position: absolute;
+  top: 99px;
+  right: 0px;
+  /* margin-left: 200px; */
+  margin: auto;
+  padding: 0px 40px;
+  width: calc(100% - 320px);
   transition: margin-left 0.3s ease, width 0.3s ease;
+  height: 100vw;
 }
 
 /* Ajuste cuando el sidebar está cerrado */
@@ -74,4 +97,22 @@
   margin-left: 80px;
   width: calc(100% - 80px);
   padding: 40px; /* Mantener el espacio cuando el sidebar está cerrado */
+}
+
+.logout-button:hover {
+  color: var(--color-logout);
+}
+
+p {
+  margin: 10px 0px;
+}
+
+button {
+  background-color: transparent;
+  border: none;
+}
+
+.my-swal-popup {
+  border-radius: 18px; /* Ajusta el valor según el nivel de redondez que necesites */
+  border: 2px solid var(--color-button-grey)
 }

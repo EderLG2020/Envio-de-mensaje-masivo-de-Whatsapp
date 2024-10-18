@@ -145,104 +145,148 @@ app.get('/api/send-whatsapp/resumen', async (req, res) => {
     }
 });
 
-
-// Ruta para eliminar una instancia
-app.delete('/api/delete-instance/:instanceName', async (req, res) => {
-    const { instanceName } = req.params;
-
-    try {
-        const response = await axios.delete(`${API_BASE_URL}/instance/delete/${instanceName}`, {
-            headers: {
-                'apikey': API_KEY
+app.post('/api/send-whatsapp/estado', async (req, res) => {
+        const { idcampania, estado } = req.body
+        try {
+            const response = await axios.post(`${EXTERNAL_API_BASE_URL}/api/sendwhatsapp/estado`, {
+                idcampania: idcampania,
+                estado: estado
+            });
+            const responseData = {
+                message: response.data,
             }
-        });
 
-        res.status(response.status).json(response.data);
-    } catch (error) {
-        console.error('Error al eliminar la instancia:', error.response?.data || error.message);
-        res.status(error.response?.status || 400).json({
-            message: error.response?.data?.message || 'Error al eliminar la instancia.'
-        });
-    }
-});
+            res.status(response.status).json(responseData);
+        } catch (error) {
+            console.error('Error al cambiar de estado:', error.response?.data || error.message);
+            res.status(400).json({
+                message: error.response?.data.message || 'Error al cambiar de estado.',
+                status: 400
+            });
+        }
+    })
 
-// Ruta para cerrar la sesión de una instancia
-app.delete('/api/logout-instance/:instanceName', async (req, res) => {
-    const { instanceName } = req.params;
 
-    try {
-        const response = await axios.delete(`${API_BASE_URL}/instance/logout/${instanceName}`, {
-            headers: {
-                'apikey': API_KEY
+    // Ruta para eliminar una instancia
+    app.delete('/api/delete-instance/:instanceName', async (req, res) => {
+        const { instanceName } = req.params;
+
+        try {
+            const response = await axios.delete(`${API_BASE_URL}/instance/delete/${instanceName}`, {
+                headers: {
+                    'apikey': API_KEY
+                }
+            });
+
+            res.status(response.status).json(response.data);
+        } catch (error) {
+            console.error('Error al eliminar la instancia:', error.response?.data || error.message);
+            res.status(error.response?.status || 400).json({
+                message: error.response?.data?.message || 'Error al eliminar la instancia.'
+            });
+        }
+    });
+
+    // Ruta para cerrar la sesión de una instancia
+    app.delete('/api/logout-instance/:instanceName', async (req, res) => {
+        const { instanceName } = req.params;
+
+        try {
+            const response = await axios.delete(`${API_BASE_URL}/instance/logout/${instanceName}`, {
+                headers: {
+                    'apikey': API_KEY
+                }
+            });
+
+            res.status(response.status).json(response.data);
+        } catch (error) {
+            console.error('Error al cerrar la sesión de la instancia:', error.response?.data || error.message);
+            res.status(error.response?.status || 400).json({
+                message: error.response?.data?.message || 'Error al cerrar la sesión de la instancia.'
+            });
+        }
+    });
+
+    app.get('/api/generate-qr/:instanceName', async (req, res) => {
+        const { instanceName } = req.params;
+
+        try {
+            const response = await axios.get(`${API_BASE_URL}/instance/connect/${instanceName}`, {
+                headers: {
+                    'apikey': API_KEY
+                }
+            });
+
+            // Respuesta exitosa con status: 200
+            const responseData = {
+                base64: response.data.base64,
+                status: 200
+            };
+
+            res.status(200).json(responseData);
+        } catch (error) {
+            console.error('Error al generar el QR:', error);
+
+            // Respuesta de error con status: 400
+            res.status(400).json({
+                message: error.response?.data.message || 'Error al generar el QR.',
+                status: 400
+            });
+        }
+    });
+
+    // Ruta para reiniciar la instancia y generar un nuevo QR
+    app.get('/api/restart-qr/:instanceName', async (req, res) => {
+        const { instanceName } = req.params;
+
+        try {
+            const response = await axios.post(`${API_BASE_URL}/instance/restart/${instanceName}`, {}, {
+                headers: {
+                    'apikey': API_KEY
+                }
+            });
+
+            // Respuesta exitosa con status: 200
+            const responseData = {
+                message: response.data.base64,
+                status: 200
+            };
+
+            res.status(200).json(responseData);
+        } catch (error) {
+            console.error('Error al reiniciar la instancia:', error.response?.data || error.message);
+
+            // Respuesta de error con status: 400
+            res.status(400).json({
+                message: error.response?.data.message || 'Error al reiniciar la instancia.',
+                status: 400
+            });
+        }
+    });
+
+    app.post('/api/login', async (req, res) => {
+        const { idacceso, contraseña } = req.body;
+        try {
+            const response = await axios.post('http://35.231.72.158:2025/api/Licencias/Login', {
+                idacceso: idacceso,
+                contraseña: contraseña,
+                idempresas: "0",
+                ipregistro: "0.0.0.0"
+            });
+            const responseData = {
+                message: response.data,
             }
-        });
 
-        res.status(response.status).json(response.data);
-    } catch (error) {
-        console.error('Error al cerrar la sesión de la instancia:', error.response?.data || error.message);
-        res.status(error.response?.status || 400).json({
-            message: error.response?.data?.message || 'Error al cerrar la sesión de la instancia.'
-        });
-    }
-});
+            res.status(response.status).json(responseData);
+        } catch (error) {
+            console.error('Error al iniciar sesión:', error.response?.data || error.message);
+            res.status(400).json({
+                message: error.response?.data.message || 'Error al iniciar sesión.',
+                status: 400
+            });
+        }
+    });
 
-app.get('/api/generate-qr/:instanceName', async (req, res) => {
-    const { instanceName } = req.params;
-
-    try {
-        const response = await axios.get(`${API_BASE_URL}/instance/connect/${instanceName}`, {
-            headers: {
-                'apikey': API_KEY
-            }
-        });
-
-        // Respuesta exitosa con status: 200
-        const responseData = {
-            base64: response.data.base64,
-            status: 200
-        };
-
-        res.status(200).json(responseData);
-    } catch (error) {
-        console.error('Error al generar el QR:', error);
-
-        // Respuesta de error con status: 400
-        res.status(400).json({
-            message: error.response?.data.message || 'Error al generar el QR.',
-            status: 400
-        });
-    }
-});
-
-// Ruta para reiniciar la instancia y generar un nuevo QR
-app.get('/api/restart-qr/:instanceName', async (req, res) => {
-    const { instanceName } = req.params;
-
-    try {
-        const response = await axios.post(`${API_BASE_URL}/instance/restart/${instanceName}`, {}, {
-            headers: {
-                'apikey': API_KEY
-            }
-        });
-
-        // Respuesta exitosa con status: 200
-        const responseData = {
-            message: response.data.base64,
-            status: 200
-        };
-
-        res.status(200).json(responseData);
-    } catch (error) {
-        console.error('Error al reiniciar la instancia:', error.response?.data || error.message);
-
-        // Respuesta de error con status: 400
-        res.status(400).json({
-            message: error.response?.data.message || 'Error al reiniciar la instancia.',
-            status: 400
-        });
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+    app.listen(PORT, () => {
+        console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    });

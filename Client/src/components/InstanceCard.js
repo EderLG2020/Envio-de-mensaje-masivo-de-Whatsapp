@@ -112,9 +112,10 @@ function InstanceCard({ id, name, profileName, profilePicUrl, status, connected,
     }, [stopQrPolling]);
 
     return (
-        <div className="instance-card-container">
-            <div className="instance-card-background">
-                <div className={`instance-card-content ${deleting ? 'deleting' : ''}`}>
+        <div className= "instance-card-container">
+            <div className={`instance-card-background ${!connected ? 'instance-offline' : ''}`}>
+                {/* <div className={`instance-card-content ${deleting ? 'deleting' : ''}`}> */}
+                <div className={`instance-card-content ${deleting ? 'deleting' : ''}}`}>
                     <div className="instance-header">
                         <strong className="instance-name">{name}</strong>
                         {showQr && (
@@ -139,7 +140,7 @@ function InstanceCard({ id, name, profileName, profilePicUrl, status, connected,
                     <div className="instance-footer">
                         <div className="status-container">
                             <button className={connected ? 'connected' : 'disconnected'}>
-                                {connected ? 'Conectada' : 'Desconectado'} <span className="status-indicator"></span>
+                                {connected ? 'Conectado' : 'Desconectado'} <span className="status-indicator"></span>
                             </button>
                             {flag && <img src={flag} alt="flag" className="country-flag" />}
                         </div>

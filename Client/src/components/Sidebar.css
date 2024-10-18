@@ -1,8 +1,10 @@
+@import url(../App.css);
+
 /* Estilo general del sidebar */
 .sidebar {
   height: 100vh;
-  width: 250px;
-  background-color: #111111;
+  width: 200px;
+  background-color: var(--color-sidebar-card);
   color: #ffffff;
   padding: 20px;
   position: fixed;
@@ -31,7 +33,7 @@
 }
 
 .sidebar-header .logo {
-  width: 50px;
+  width: auto;
   height: 50px;
   margin-bottom: 10px;
 }
@@ -50,28 +52,27 @@
   width: 100%;
 }
 
-.menu-item {
+/* .menu-item {
   display: flex;
   align-items: center;
-  padding: 15px 20px;
+  padding: 10px 25px;
   font-size: 16px;
   color: #ffffff;
   text-decoration: none;
-  transition: background 0.3s ease, color 0.3s ease;
-  border-radius: 8px;
-}
+  transition: border 0.3s ease;
+  border-radius: 16px;
+  border: 2px solid transparent;
+  background-color: transparent;
+} */
 
 /* Resalta la opción activa */
 .menu-item.active {
-  background-color: #444b6b;
-  color: #ffffff;
+  /* background-color: var(--color-button-green); */
+  color: var(--color-white);
+  border: 2px solid var(--color-button-green);
 }
 
 /* Efecto de hover mejorado */
-.menu-item:hover {
-  background-color: #3a4166;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-}
 
 .menu-item svg {
   font-size: 20px;
@@ -86,5 +87,5 @@
 }
 
 .logout {
-  margin-bottom: 20px;
+  margin-bottom: 40px;
 }

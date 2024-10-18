@@ -1,51 +1,79 @@
+@import url(../App.css);
+
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7); /* Fondo negro con opacidad */
-    backdrop-filter: blur(5px); /* Desenfoque del fondo */
+    background: rgba(0, 0, 0, 0.7);
+    /* Fondo negro con opacidad */
+    backdrop-filter: blur(5px);
+    /* Desenfoque del fondo */
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 100000000;
 }
 
 .modal-content {
-    background: #111111; /* Fondo más oscuro */
-    padding: 30px;
-    border-radius: 12px; /* Bordes curvos */
-    border: 1px solid rgba(255, 255, 255, 0.2); /* Borde claro */
-    width: 350px; /* Ajustamos el ancho */
+    background: var(--color-sidebar-card);
+    /* Fondo más oscuro */
+    padding: 20px;
+    border-radius: 12px;
+    /* Bordes curvos */
+    border: 2px solid rgb(55, 55, 55);
+    width: 400px;
+    /* Ajustamos el ancho */
     max-width: 90%;
+    box-shadow: 0 10px 1px rgba(0, 0, 0, 0.5);
     text-align: center;
-    box-shadow: none; /* Sin sombra */
-    position: relative; /* Necesario para la posición del botón de cierre */
+    position: relative;
+    /* Necesario para la posición del botón de cierre */
 }
 
 .modal-content h3 {
     margin-bottom: 15px;
-    color: white;
-    font-size: 18px; /* Tamaño más pequeño y uniforme */
-    font-weight: 600; /* Negrita */
+    color: var(--color-white);
+    ;
+    font-size: 18px;
+    /* Tamaño más pequeño y uniforme */
+    font-weight: 600;
+    /* Negrita */
 }
 
 .modal-content input {
-    width: calc(100% - 20px); /* Ajustamos el ancho */
-    padding: 10px;
-    margin-bottom: 20px;
-    border: none;
-    border-radius: 4px; /* Ligeramente redondeado */
-    background: #2e2e2e;
-    color: white;
-    font-size: 14px;
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 1em;
+    background-color: var(--color-sidebar-card);
+    border: 2px solid var(--color-button-grey);
+    color: var(--color-white);
     box-sizing: border-box;
+    margin-bottom: 10px;
+    max-width: 100%;
+    margin-right: 0;
+    font-family: 'poppins';
+    font-size: 14px;
+    outline: none;
+    transition: border 0.3s ease;
 }
 
+.modal-content input:hover {
+    border: 2px solid var(--color-login-grey);
+}
+
+.modal-content input:focus {
+    border: 2px solid var(--color-login-grey);
+}
+
+
 .error-message {
-    color: #ff4c4c;
-    margin-bottom: 15px;
+    color: var(--color-error-cancel);
+    margin-top: 0px;
+    margin-bottom: 0px;
+    font-size: 12px;
 }
 
 .modal-buttons {
@@ -57,7 +85,8 @@
 .btn {
     padding: 10px 20px;
     border: none;
-    border-radius: 4px; /* Ligero redondeo */
+    border-radius: 12px;
+    /* Ligero redondeo */
     cursor: pointer;
     font-weight: 600;
     width: 48%;
@@ -65,13 +94,17 @@
 }
 
 .btn-cancel {
-    background: #ff4c4c;
-    color: white;
+    background: var(--color-error-cancel);
+    color: var(--color-white);
+    width: 30%;
+    ;
 }
 
 .btn-confirm {
-    background: #28a745;
-    color: white;
+    background: var(--color-succes-confirm);
+    color: var(--color-white);
+    width: 30%;
+    ;
 }
 
 .btn:hover {
@@ -89,7 +122,8 @@
 
 .qr-image {
     width: 300px;
-    height: 300px; /* Hacemos que el QR sea más compacto */
+    height: 300px;
+    /* Hacemos que el QR sea más compacto */
     margin: 20px auto;
     display: block;
 }
@@ -98,23 +132,15 @@
     position: absolute;
     top: 15px;
     right: 15px;
-    background-color: #25D366; /* Verde de WhatsApp */
-    border: 1px solid #25D366; /* Borde verde */
-    border-radius: 8px; /* Bordes redondeados */
-    width: 30px;
-    height: 30px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 16px;
+    border-radius: 8px;
+    font-size: 1.2em;
     font-weight: bold;
     cursor: pointer;
-    color: #fff; /* Color de la "X" */
+    color: #fff;
     z-index: 1001;
-    transition: background-color 0.3s ease, border-color 0.3s ease;
+    transition: color 0.3s ease;
 }
 
 .modal-close:hover {
-    background-color: #1EBE5B; /* Verde más oscuro al pasar el mouse */
-    border-color: #1EBE5B;
+    color: var(--color-error-cancel);
 }

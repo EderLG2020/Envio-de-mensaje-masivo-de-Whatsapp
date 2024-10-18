@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Campanas.css';
 import * as XLSX from 'xlsx';
-import { registerCampaign, getWhatsAppSummary } from '../api';
+import { registerCampaign, getWhatsAppSummary, postWspState } from '../api';
 import Swal from 'sweetalert2';
 import Spinner from '../components/Spinner';
-import { FaCheckCircle, FaTimesCircle, FaClock } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaClock, FaPause, FaEye, FaPlay, FaBan, FaWindowClose, FaCircle } from 'react-icons/fa';
 
 function Campanas() {
     const [modalIsOpen, setModalIsOpen] = useState(false);
@@ -17,14 +17,45 @@ function Campanas() {
     const [telefonosNombres, setTelefonosNombres] = useState([]);
     const [summaryData, setSummaryData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [expandedId, setExpandedId] = useState(null);
     const inputRef = useRef(null);
 
     // Función para obtener el resumen de campañas
+    // const fetchSummaryData = async (showLoading = true) => {
+    //     if (showLoading) setLoading(true);
+    //     try {
+    //         const data = await getWhatsAppSummary();
+    //         setSummaryData(data.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora))); // Ordena por fecha descendente
+    //     } catch (error) {
+    //         console.error('Error al obtener el resumen de WhatsApp:', error);
+    //     } finally {
+    //         if (showLoading) setLoading(false);
+    //     }
+    // };
+
     const fetchSummaryData = async (showLoading = true) => {
         if (showLoading) setLoading(true);
         try {
             const data = await getWhatsAppSummary();
-            setSummaryData(data.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora))); // Ordena por fecha descendente
+            // Ordenar por fecha descendente
+            setSummaryData(data.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora)));
+
+            // Recorrer cada campaña para verificar si hay campañas que cumplan con la condición de pendiente === 0 y idestado === 4
+            for (const campaign of data) {
+                if (campaign.idestado === 4) {
+                    if (campaign.pendiente === 0) {
+                        try {
+                            // Actualizar el estado de la campaña a 5
+                            await postWspState(campaign.idcampania, 5);
+                            console.log(`Campaña ${campaign.idcampania} completada. Estado actualizado a 5.`);
+                        } catch (error) {
+                            console.error(`Error al actualizar el estado de la campaña ${campaign.idcampania}:`, error);
+                        }
+                    }
+                } else {
+                    console.log('No hay campañas pendientes para completar.');
+                }
+            }
         } catch (error) {
             console.error('Error al obtener el resumen de WhatsApp:', error);
         } finally {
@@ -37,7 +68,7 @@ function Campanas() {
         fetchSummaryData(); // Llamada inicial para cargar los datos con loading
 
         // Ejecutar la función cada 20 segundos sin mostrar loading
-        const intervalId = setInterval(() => fetchSummaryData(false), 5000);
+        const intervalId = setInterval(() => fetchSummaryData(false), 20000);
 
         // Limpiar el intervalo cuando el componente se desmonte
         return () => clearInterval(intervalId);
@@ -122,6 +153,10 @@ function Campanas() {
                 icon: 'error',
                 title: 'Error',
                 text: 'Todos los campos deben estar completos y debes adjuntar un archivo válido.',
+                customClass: {
+                    popup: 'my-swal-popup' // Añade una clase personalizada al modal
+                },
+                background: '#111111'
             });
             return false;
         }
@@ -147,6 +182,10 @@ function Campanas() {
                 text: 'Campaña registrada con éxito',
                 showConfirmButton: false,
                 timer: 2000,
+                background: '#111111',
+                customClass: {
+                    popup: 'my-swal-popup' // Añade una clase personalizada al modal
+                }
             });
 
             closeModal();
@@ -157,14 +196,120 @@ function Campanas() {
                 icon: 'error',
                 title: 'Error',
                 text: 'Ocurrió un error al registrar la campaña. Inténtalo de nuevo.',
+                background: '#111111',
+                customClass: {
+                    popup: 'my-swal-popup' // Añade una clase personalizada al modal
+                }
             });
         }
     };
+
+    const handleViewClick = (id) => {
+        // Si el mismo card ya está expandido, colapsarlo; si no, expandirlo
+        setExpandedId(expandedId === id ? null : id);
+    };
+
+    const changeStateCard = async (id, estado) => {
+        try {
+            const response = await postWspState(id, estado);
+            Swal.fire({
+                icon: 'success',
+                title: 'Éxito',
+                color: '#ffffff',
+                background: '#111111',
+                // text: `El estado de la campaña se ha cambiado exitosamente.`,
+                showConfirmButton: false,
+                timer: 2000,
+                customClass: {
+                    popup: 'my-swal-popup' // Añade una clase personalizada al modal
+                }
+            });
+            await fetchSummaryData(false); // Refrescar los datos después de cambiar el estado
+            console.log('Cambio exitoso', response.message);
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                background: '#111111',
+                title: 'Error',
+                // text: `Hubo un error al cambiar el estado de la campaña. Inténtalo de nuevo.`,
+                customClass: {
+                    popup: 'my-swal-popup' // Añade una clase personalizada al modal
+                }
+            });
+            console.error('Error al cambiar el estado de la campaña:', error);
+        }
+    };
+
+    const renderButtons = (id, estado) => {
+
+        if (estado === 3) {
+            // Renderizar en estado pausa
+            return (
+                <>
+                    <button onClick={() => changeStateCard(id, 3)}>
+                        <FaPlay className='status-icon' title='Reactivar Campaña' />
+                    </button>
+                    <button onClick={() => changeStateCard(id, 6)}>
+                        <FaBan className='status-icon' title='Cancelar Campaña' />
+                    </button>
+                </>
+            )
+        } else if (estado === 0 || estado === 4) {
+            // Renderizar en estado pendiente y enviando
+            return (
+                <>
+                    <button onClick={() => changeStateCard(id, 0)}>
+                        <FaPause className='status-icon' title='Detener campaña' />
+                    </button>
+                    <button onClick={() => changeStateCard(id, 6)}>
+                        <FaBan className='status-icon' title='Cancelar Campaña' />
+                    </button>
+                </>
+            )
+        } else if (estado === 6) {
+            // Renderizar en estado pausa
+            return (
+                <>
+                    <button onClick={() => changeStateCard(id, 3)}>
+                        <FaPlay className='status-icon' title='Reactivar Campaña' />
+                    </button>
+                </>
+            )
+        } else if (estado === 5) {
+            // Renderizar en estado pausa
+            return (
+                <>
+                </>
+            )
+        }
+    }
 
     return (
         <div className="dashboard-container">
             <div className="header">
                 <h1>Campañas</h1>
+                <div className='box-leyend' style={{ display: 'flex', gap: '20px' }} >
+                    <div className='leyend-pause' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                        <FaCircle />
+                        <p>Pausa</p>
+                    </div>
+                    <div className='leyend-send' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                        <FaCircle />
+                        <p>Pendiente</p>
+                    </div>
+                    {/* <div className='leyend-cancel' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                        <FaCircle />
+                        <p>Cancelar</p>
+                    </div> */}
+                    <div className='leyend-sending' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                        <FaCircle />
+                        <p>Enviando</p>
+                    </div>
+                    <div className='leyend-finalized' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                        <FaCircle />
+                        <p>Finalizado</p>
+                    </div>
+                </div>
                 <div className="button-group">
                     <button onClick={openModal} className="crear-campana-btn">Crear Campaña</button>
                     <a href="/plantilla.xlsx" download>
@@ -180,15 +325,42 @@ function Campanas() {
                     {summaryData.length > 0 ? (
                         summaryData.map((item, index) => (
                             <div
-                                className={`card ${item.pendiente === 0 ? 'card-completed' : 'card-pending'}`}
+                                className={`card ${item.idestado === 3
+                                    ? 'card-pause'
+                                    : item.idestado === 0
+                                        ? 'card-pending'
+                                        : item.idestado === 6
+                                            ? 'card-cancel'
+                                            : item.idestado === 4
+                                                ? 'card-sending'
+                                                : item.idestado === 5
+                                                    ? 'card-completed'
+                                                    : ''
+                                    }`}
                                 key={index}
                             >
                                 <div className="card-header">
-                                    <span className="fecha">{new Date(item.fechaHora).toLocaleDateString()}</span>
-                                    <span className="hora">{new Date(item.fechaHora).toLocaleTimeString()}</span>
+                                    <div className='box-data'>
+                                        <span className="fecha">{new Date(item.fechaHora).toLocaleDateString()}</span>
+                                        <span className="hora">{new Date(item.fechaHora).toLocaleTimeString()}</span>
+                                    </div>
+                                    {/* Condiciones para renderizar botones en card */}
+                                    <div className='box-buttons'>
+                                        {renderButtons(item.idcampania, item.idestado)}
+                                    </div>
                                 </div>
                                 <div className="card-campaign-name">
                                     <h3>{item.campania}</h3>
+                                </div>
+                                <div className="box-view">
+                                    <div className='view' onClick={() => handleViewClick(item.idcampania)}>
+                                        <p>Ver contenido</p>
+                                        <FaEye className="status-icon" />
+                                    </div>
+                                    {/* Contenido que se expande al hacer clic */}
+                                    <div className={`content ${expandedId === item.idcampania ? 'show' : ''}`}>
+                                        {item.mensaje}
+                                    </div>
                                 </div>
                                 <div className="card-body">
                                     <div className="status-group">
@@ -221,7 +393,9 @@ function Campanas() {
                     <div className="custom-modal">
                         <div className="custom-modal-header">
                             <h2>Crear Campaña</h2>
-                            <button className="close-btn" onClick={closeModal}>X</button>
+                            <button className="close-btn" onClick={closeModal}>
+                                <FaWindowClose />
+                            </button>
                         </div>
 
                         <div className="custom-modal-body">

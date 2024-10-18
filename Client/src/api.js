@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL para la API
-const API_URL = 'http://10.10.2.59:5000/api';
+const API_URL = 'http://10.10.10.3:5000/api';
 
 // Función para obtener las instancias
 export const fetchInstances = async () => {
@@ -111,9 +111,34 @@ export const registerCampaign = async (campania, titulo, mensaje, tipo, cantidad
 export const getWhatsAppSummary = async () => {
     try {
         const response = await axios.get(`${API_URL}/send-whatsapp/resumen`);
+        // const response = await axios.get('http://10.10.10.10:5000/api/sendwhatsapp/resumen');
         return response.data;
     } catch (error) {
         console.error('Error fetching WhatsApp summary:', error);
         throw error.response?.data || error;
     }
 };
+
+export const postWspState = async (idcampania, estado) => {
+    try {
+        const response = await axios.post(`${API_URL}/send-whatsapp/estado`, {
+            idcampania: idcampania,
+            estado: estado
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error al cambiar el estado de la campaña:', error);
+        throw error;
+    }
+};
+
+
+export const login = async (idacceso, contraseña) => {
+    try {
+        const reponse = await axios.post(`${API_URL}/login`, { idacceso, contraseña });
+        return reponse.data;
+    } catch (error) {
+        console.error('Error login', error)
+        throw error;
+    }
+}

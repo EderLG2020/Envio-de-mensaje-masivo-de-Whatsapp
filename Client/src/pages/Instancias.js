@@ -84,6 +84,7 @@ function Instancias() {
         <div className="instancias-container">
             {loading && <Spinner />}
             <div className="toolbar">
+                <h1>Instancias</h1>
                 <input
                     type="text"
                     placeholder="Buscar"
@@ -112,7 +113,7 @@ function Instancias() {
                     <InstanceCard
                         key={instance.id}
                         name={instance.name}
-                        status={instance.connectionStatus === 'open' ? 'Conectada' : 'Desconectado'}
+                        status={instance.connectionStatus === 'open' ? 'Conectado' : 'Desconectado'}
                         connected={instance.connectionStatus === 'open'}
                         number1={instance._count.Message}
                         number2={instance._count.Chat}
