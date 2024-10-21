@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Importar useNavigate para redirigir
 import './Login.css';
 import { login } from '../api';
@@ -41,6 +41,20 @@ function Login() {
             console.error('Error al intentar iniciar sesión:', error);
         }
     };
+
+    // Manejar la tecla Enter para enviar el formulario
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            if (event.key === 'Enter') {
+                handleLogin();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [user, password]);
 
     return (
         <div className='body'>
