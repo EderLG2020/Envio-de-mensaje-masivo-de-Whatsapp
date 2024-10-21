@@ -4,7 +4,7 @@ import { AiOutlineDashboard, AiOutlineAppstore, AiOutlineThunderbolt, AiOutlineL
 import { FaCog, FaSignOutAlt } from 'react-icons/fa';
 import { IoMenu } from "react-icons/io5";
 import './Sidebar.css';
-import logo from '../assets/logo.webp';
+import logo from '../assets/logo.png';
 import logoResponsive from '../assets/isotipo.png';
 
 const Sidebar = () => {
