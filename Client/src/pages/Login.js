@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // Importar useNavigate para redirigir
 import './Login.css';
 import { login } from '../api';
-import logo from '../assets/ima_isotipo.png';
+import logo from '../assets/isotipo.png';
 
 function Login() {
     // Definir estados para usuario, contraseña y mensajes de error

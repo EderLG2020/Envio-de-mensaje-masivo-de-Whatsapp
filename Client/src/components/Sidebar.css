@@ -68,7 +68,7 @@
 /* Resalta la opción activa */
 .menu-item.active {
   /* background-color: var(--color-button-green); */
-  color: var(--color-button-green);
+  color: var(--color-white);
   border: 2px solid var(--color-button-green);
 }
 
