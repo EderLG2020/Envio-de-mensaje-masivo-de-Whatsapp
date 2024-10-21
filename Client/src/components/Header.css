@@ -1,12 +1,11 @@
 .header {
-    padding: 20px;
-    background-color: #2d2d2d;
-    text-align: center;
-    border-bottom: 1px solid #444;
-  }
-  
-  .header h1 {
-    margin: 0;
-    font-size: 24px;
-  }
-  
+  padding: 20px;
+  background-color: #2d2d2d;
+  text-align: center;
+  border-bottom: 1px solid #444;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 24px;
+}

@@ -21,9 +21,13 @@
   margin-bottom: 20px;
 }
 
+.box-input {
+  width: 100% ;
+}
+
 .search-bar {
   padding: 10px;
-  width: 20% !important;
+  width: 100% !important;
   background-color: var(--color-button-grey);
   border: 2px solid var(--color-button-grey);
   border-radius: 12px;
@@ -74,3 +78,49 @@
   margin-bottom: 20px;
 }
 
+@media (max-width: 1000px) {
+  .toolbar {
+    width: calc(100% - 180px);
+  }
+}
+
+@media (max-width: 700px) {
+
+  .toolbar h1 {
+    margin: 30px 0px 0px 0px;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    padding: 10px 20px;
+    width: calc(100% - 140px)
+  }
+
+  .search-bar,
+  .box-options{
+    width: 100% !important;
+    justify-content: space-between;
+  }
+
+  .instance-grid {
+    margin-top: 110px;
+  }
+
+  .add-button,
+  .status-filter {
+    width: 50%;
+  }
+}
+
+@media (max-width: 500px) {
+
+  .toolbar h1 {
+    font-size: 25px;
+  }
+
+  .toolbar {
+    padding: 10px 20px;
+    width: calc(100% - 40px);
+  }
+
+}

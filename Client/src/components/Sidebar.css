@@ -68,7 +68,7 @@
 /* Resalta la opción activa */
 .menu-item.active {
   /* background-color: var(--color-button-green); */
-  color: var(--color-white);
+  color: var(--color-button-green);
   border: 2px solid var(--color-button-green);
 }
 
@@ -88,4 +88,84 @@
 
 .logout {
   margin-bottom: 40px;
+}
+
+.box-ic-menu {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  top: 10px;
+  left: 110px;
+  width: 30px;
+  height: 30px;
+}
+
+.box-ic-menu svg {
+  width: 30px;
+  height: 30px;
+}
+
+@media (max-width: 1000px) {
+
+  .sidebar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 80px;
+    padding: 20px 10px;
+    height: 100%;
+  }
+
+  .sidebar span {
+    display: none;
+  }
+
+  .menu,
+  .bottom-section {
+    width: 100%;
+  }
+
+  .logout span {
+    display: none;
+  }
+
+  .sidebar li {
+    display: flex;
+    justify-content: center;
+  }
+
+  .menu-item {
+    display: flex !important;
+    justify-content: center;
+  }
+
+  .logout-button svg {
+    width: 20px !important;
+  }
+
+  .menu-item.active {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 500px) {
+
+  .box-ic-menu {
+    display: flex;
+  }
+
+  .sidebar {
+    display: flex;
+    left: -100px;
+    z-index: 1000000000;
+  }
+
+  /* Cuando la sidebar está visible */
+  .sidebar-visible {
+    left: 0;
+    /* Mover la sidebar para que sea visible */
+  }
+
 }

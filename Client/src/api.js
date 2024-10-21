@@ -127,11 +127,10 @@ export const postWspState = async (idcampania, estado) => {
         });
         return response.data;
     } catch (error) {
-        console.error('Error al cambiar el estado de la campaña:', error);
-        throw error;
+        console.error('Error change whatasapp status:', error);
+        throw error.response?.data || error;
     }
-};
-
+}
 
 export const login = async (idacceso, contraseña) => {
     try {

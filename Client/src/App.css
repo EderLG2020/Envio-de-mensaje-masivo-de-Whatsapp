@@ -4,16 +4,15 @@
   --color-login-grey: #878787;
   --color-button-grey: rgb(55, 55, 55);
   --color-white: #ffffff;
-  --color-button-green: #ff0000;
-  --color-button-green-hover: #bb0101;
+  --color-button-green: #08a33e;
+  --color-button-green-hover: #088935;
   --color-green-dark: #122618;
   --color-logout: #ff0000;
   --color-error-cancel: #ff4c4c;
   --color-succes-confirm: #28a745;
 }
 
-.app-container {
-}
+.app-container {}
 
 .sidebar.closed {
   width: 80px;
@@ -93,10 +92,11 @@
 }
 
 /* Ajuste cuando el sidebar está cerrado */
-.sidebar.closed + .main-content {
+.sidebar.closed+.main-content {
   margin-left: 80px;
   width: calc(100% - 80px);
-  padding: 40px; /* Mantener el espacio cuando el sidebar está cerrado */
+  padding: 40px;
+  /* Mantener el espacio cuando el sidebar está cerrado */
 }
 
 .logout-button:hover {
@@ -113,6 +113,28 @@ button {
 }
 
 .my-swal-popup {
-  border-radius: 18px; /* Ajusta el valor según el nivel de redondez que necesites */
+  border-radius: 18px;
+  /* Ajusta el valor según el nivel de redondez que necesites */
   border: 2px solid var(--color-button-grey)
+}
+
+@media (max-width: 1000px) {
+  .main-content {
+    width: calc(100% - 180px);
+  }
+}
+
+
+@media (max-width: 700px) {
+  .main-content {
+    width: calc(100% - 140px);
+    padding: 0px 20px;
+  }
+}
+
+@media (max-width: 500px) {
+  .main-content {
+    width: calc(100% - 40px);
+    padding: 0px 20px;
+  }
 }

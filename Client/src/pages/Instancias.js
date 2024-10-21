@@ -85,28 +85,32 @@ function Instancias() {
             {loading && <Spinner />}
             <div className="toolbar">
                 <h1>Instancias</h1>
-                <input
-                    type="text"
-                    placeholder="Buscar"
-                    className="search-bar"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <button className="refresh-button" onClick={loadInstances}>
-                    <FiRefreshCw size={20} />
-                </button>
-                <button className="add-button" onClick={() => setIsModalOpen(true)}>
-                    <AiOutlinePlus size={20} /> Instancia
-                </button>
-                <select
-                    className="status-filter"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                    <option value="Todos">Todos</option>
-                    <option value="Conectado">Conectado</option>
-                    <option value="Desconectado">Desconectado</option>
-                </select>
+                <div className='box-input' style={{ display: "flex", gap: "10px" }}>
+                    <input
+                        type="text"
+                        placeholder="Buscar"
+                        className="search-bar"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <button className="refresh-button" onClick={loadInstances}>
+                        <FiRefreshCw size={20} />
+                    </button>
+                </div>
+                <div className='box-options' style={{ display: "flex", gap: "10px" }}>
+                    <button className="add-button" onClick={() => setIsModalOpen(true)}>
+                        <AiOutlinePlus size={20} /> Instancia
+                    </button>
+                    <select
+                        className="status-filter"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                        <option value="Todos">Todos</option>
+                        <option value="Conectado">Conectado</option>
+                        <option value="Desconectado">Desconectado</option>
+                    </select>
+                </div>
             </div>
             <div className="instance-grid">
                 {!loading && filteredInstances.map(instance => (

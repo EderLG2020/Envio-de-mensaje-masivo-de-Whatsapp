@@ -6,6 +6,8 @@ import Swal from 'sweetalert2';
 import Spinner from '../components/Spinner';
 import { FaCheckCircle, FaTimesCircle, FaClock, FaPause, FaEye, FaPlay, FaTrash, FaWindowClose, FaCircle } from 'react-icons/fa';
 
+
+
 function Campanas() {
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [campaignName, setCampaignName] = useState('');
@@ -21,18 +23,6 @@ function Campanas() {
     const inputRef = useRef(null);
 
     // Función para obtener el resumen de campañas
-    // const fetchSummaryData = async (showLoading = true) => {
-    //     if (showLoading) setLoading(true);
-    //     try {
-    //         const data = await getWhatsAppSummary();
-    //         setSummaryData(data.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora))); // Ordena por fecha descendente
-    //     } catch (error) {
-    //         console.error('Error al obtener el resumen de WhatsApp:', error);
-    //     } finally {
-    //         if (showLoading) setLoading(false);
-    //     }
-    // };
-
     const fetchSummaryData = async (showLoading = true) => {
         if (showLoading) setLoading(true);
         try {
@@ -42,18 +32,14 @@ function Campanas() {
 
             // Recorrer cada campaña para verificar si hay campañas que cumplan con la condición de pendiente === 0 y idestado === 4
             for (const campaign of data) {
-                if (campaign.idestado === 4) {
-                    if (campaign.pendiente === 0) {
-                        try {
-                            // Actualizar el estado de la campaña a 5
-                            await postWspState(campaign.idcampania, 5);
-                            console.log(`Campaña ${campaign.idcampania} completada. Estado actualizado a 5.`);
-                        } catch (error) {
-                            console.error(`Error al actualizar el estado de la campaña ${campaign.idcampania}:`, error);
-                        }
+                if (campaign.pendiente === 0 && campaign.idestado === 4) {
+                    try {
+                        // Actualizar el estado de la campaña a 5
+                        await postWspState(campaign.idcampania, 5);
+                        console.log(`Campaña ${campaign.idcampania} completada. Estado actualizado a 5.`);
+                    } catch (error) {
+                        console.error(`Error al actualizar el estado de la campaña ${campaign.idcampania}:`, error);
                     }
-                } else {
-                    console.log('No hay campañas pendientes para completar.');
                 }
             }
         } catch (error) {
@@ -68,7 +54,7 @@ function Campanas() {
         fetchSummaryData(); // Llamada inicial para cargar los datos con loading
 
         // Ejecutar la función cada 20 segundos sin mostrar loading
-        const intervalId = setInterval(() => fetchSummaryData(false), 20000);
+        const intervalId = setInterval(() => fetchSummaryData(false), 5000);
 
         // Limpiar el intervalo cuando el componente se desmonte
         return () => clearInterval(intervalId);
@@ -250,7 +236,7 @@ function Campanas() {
                         <FaPlay className='status-icon' title='Reactivar Campaña' />
                     </button>
                     <button onClick={() => changeStateCard(id, 6)}>
-                        <FaTrash className='status-icon' title='Cancelar Campaña' />
+                        <FaTrash className='status-icon' title='Eliminar Campaña' />
                     </button>
                 </>
             )
@@ -262,7 +248,7 @@ function Campanas() {
                         <FaPause className='status-icon' title='Detener campaña' />
                     </button>
                     <button onClick={() => changeStateCard(id, 6)}>
-                        <FaTrash className='status-icon' title='Cancelar Campaña' />
+                        <FaTrash className='status-icon' title='Eliminar Campaña' />
                     </button>
                 </>
             )
@@ -289,6 +275,31 @@ function Campanas() {
 
     return (
         <div className="dashboard-container">
+
+            {/* LEYENDA RESPOSIVO */}
+            <div className='box-leyend-responsive' style={{ display: 'none', gap: '10px' }} >
+                <div className='leyend-pause' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                    <FaCircle />
+                    <p>Pausa</p>
+                </div>
+                <div className='leyend-send' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                    <FaCircle />
+                    <p>Pendiente</p>
+                </div>
+                {/* <div className='leyend-cancel' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                        <FaCircle />
+                        <p>Cancelar</p>
+                    </div> */}
+                <div className='leyend-sending' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                    <FaCircle />
+                    <p>Enviando</p>
+                </div>
+                <div className='leyend-finalized' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                    <FaCircle />
+                    <p>Finalizado</p>
+                </div>
+            </div>
+
             <div className="header">
                 <h1>Campañas</h1>
                 <div className='box-leyend' style={{ display: 'flex', gap: '20px' }} >
@@ -320,7 +331,6 @@ function Campanas() {
                     </a>
                 </div>
             </div>
-
             {loading ? (
                 <Spinner />
             ) : (
