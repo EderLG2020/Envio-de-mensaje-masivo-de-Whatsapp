@@ -8,11 +8,11 @@
 /* Fondo de la tarjeta */
 .instance-card-background {
     background-color: var(--color-sidebar-card);
-    box-shadow: 0px 0px 10px 1px #464646;
+    box-shadow: 0px 0px 10px 1px #6b6b6b;
     background: radial-gradient(circle at 50% -50%, #878787 1%, var(--color-sidebar-card) 55%);
     padding: 20px;
     border-radius: 18px;
-    border: 1px solid #878787;
+    border: 1px solid #bfbfbf;
     width: 100%;
     max-width: 100%;
     color: var(--color-white);
@@ -23,9 +23,9 @@
 }
 
 .instance-offline {
-    box-shadow: 0px 0px 10px 1px rgb(55, 55, 55) !important;
+    box-shadow: 0px 0px 10px 1px rgb(37, 37, 37) !important;
     background: radial-gradient(circle at 50% -50%, rgb(55, 55, 55) 1%, var(--color-sidebar-card) 55%) !important;
-    border-color: rgb(55, 55, 55) !important;
+    border-color: rgb(35, 35, 35) !important;
     /* Borde verde */
 }
 
