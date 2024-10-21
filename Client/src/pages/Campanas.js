@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import { registerCampaign, getWhatsAppSummary, postWspState } from '../api';
 import Swal from 'sweetalert2';
 import Spinner from '../components/Spinner';
-import { FaCheckCircle, FaTimesCircle, FaClock, FaPause, FaEye, FaPlay, FaBan, FaWindowClose, FaCircle } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaClock, FaPause, FaEye, FaPlay, FaTrash, FaWindowClose, FaCircle } from 'react-icons/fa';
 
 function Campanas() {
     const [modalIsOpen, setModalIsOpen] = useState(false);
@@ -250,7 +250,7 @@ function Campanas() {
                         <FaPlay className='status-icon' title='Reactivar Campaña' />
                     </button>
                     <button onClick={() => changeStateCard(id, 6)}>
-                        <FaBan className='status-icon' title='Cancelar Campaña' />
+                        <FaTrash className='status-icon' title='Cancelar Campaña' />
                     </button>
                 </>
             )
@@ -262,7 +262,7 @@ function Campanas() {
                         <FaPause className='status-icon' title='Detener campaña' />
                     </button>
                     <button onClick={() => changeStateCard(id, 6)}>
-                        <FaBan className='status-icon' title='Cancelar Campaña' />
+                        <FaTrash className='status-icon' title='Cancelar Campaña' />
                     </button>
                 </>
             )
@@ -279,6 +279,9 @@ function Campanas() {
             // Renderizar en estado pausa
             return (
                 <>
+                    <button onClick={() => changeStateCard(id, 6)}>
+                        <FaTrash className='status-icon' title='Eliminar Campaña' />
+                    </button>
                 </>
             )
         }
