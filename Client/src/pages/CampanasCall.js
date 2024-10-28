@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import './Campanas.css';
+import './CampanasCall.css';
 import * as XLSX from 'xlsx';
-import { registerCampaign, getWhatsAppSummary, postWspState } from '../api';
+import { registerCampaign, getCallSummary, postWspState } from '../api';
 import Swal from 'sweetalert2';
 import Spinner from '../components/Spinner';
-import { FaCheckCircle, FaTimesCircle, FaClock, FaPause, FaEye, FaPlay, FaTrash, FaWindowClose, FaCircle } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaClock, FaPause, FaFileAudio, FaPlay, FaTrash, FaWindowClose, FaCircle, FaHourglassStart, FaRegFlag, FaFlagCheckered } from 'react-icons/fa';
 
 
 
@@ -26,22 +26,9 @@ function Campanas() {
     const fetchSummaryData = async (showLoading = true) => {
         if (showLoading) setLoading(true);
         try {
-            const data = await getWhatsAppSummary();
-            // Ordenar por fecha descendente
-            setSummaryData(data.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora)));
-
-            // Recorrer cada campaña para verificar si hay campañas que cumplan con la condición de pendiente === 0 y idestado === 4
-            for (const campaign of data) {
-                if (campaign.pendiente === 0 && campaign.idestado === 4) {
-                    try {
-                        // Actualizar el estado de la campaña a 5
-                        await postWspState(campaign.idcampania, 5);
-                        console.log(`Campaña ${campaign.idcampania} completada. Estado actualizado a 5.`);
-                    } catch (error) {
-                        console.error(`Error al actualizar el estado de la campaña ${campaign.idcampania}:`, error);
-                    }
-                }
-            }
+            const data = await getCallSummary();
+            // Ordenar por fecha de creación descendente
+            setSummaryData(data.sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion)));
         } catch (error) {
             console.error('Error al obtener el resumen de WhatsApp:', error);
         } finally {
@@ -190,95 +177,59 @@ function Campanas() {
         }
     };
 
-    const handleViewClick = (id) => {
-        // Si el mismo card ya está expandido, colapsarlo; si no, expandirlo
-        setExpandedId(expandedId === id ? null : id);
+    const handleViewClick = (audioUrl) => {
+        Swal.fire({
+            title: 'Reproducción',
+            html: `<audio controls autoplay style="width: 100%;">
+                      <source src="${audioUrl}" type="audio/mpeg">
+                      Tu navegador no soporta la reproducción de audio.
+                   </audio>`,
+            showCloseButton: true,
+            showConfirmButton: false,
+            customClass: {
+                popup: 'my-swal-popup' // Añade una clase personalizada al modal
+            },
+            background: '#111111'
+        });
     };
 
-    const changeStateCard = async (id, estado) => {
-        try {
-            const response = await postWspState(id, estado);
-            Swal.fire({
-                icon: 'success',
-                title: 'Éxito',
-                color: '#ffffff',
-                background: '#111111',
-                // text: `El estado de la campaña se ha cambiado exitosamente.`,
-                showConfirmButton: false,
-                timer: 2000,
-                customClass: {
-                    popup: 'my-swal-popup' // Añade una clase personalizada al modal
-                }
-            });
-            await fetchSummaryData(false); // Refrescar los datos después de cambiar el estado
-            console.log('Cambio exitoso', response.message);
-        } catch (error) {
-            Swal.fire({
-                icon: 'error',
-                background: '#111111',
-                title: 'Error',
-                // text: `Hubo un error al cambiar el estado de la campaña. Inténtalo de nuevo.`,
-                customClass: {
-                    popup: 'my-swal-popup' // Añade una clase personalizada al modal
-                }
-            });
-            console.error('Error al cambiar el estado de la campaña:', error);
-        }
-    };
-
-    const renderButtons = (id, estado) => {
-
-        if (estado === 3) {
-            // Renderizar en estado pausa
-            return (
-                <>
-                    <button onClick={() => changeStateCard(id, 3)}>
-                        <FaPlay className='status-icon' title='Reactivar Campaña' />
-                    </button>
-                    <button onClick={() => changeStateCard(id, 6)}>
-                        <FaTrash className='status-icon' title='Eliminar Campaña' />
-                    </button>
-                </>
-            )
-        } else if (estado === 0 || estado === 4) {
-            // Renderizar en estado pendiente y enviando
-            return (
-                <>
-                    <button onClick={() => changeStateCard(id, 0)}>
-                        <FaPause className='status-icon' title='Detener campaña' />
-                    </button>
-                    <button onClick={() => changeStateCard(id, 6)}>
-                        <FaTrash className='status-icon' title='Eliminar Campaña' />
-                    </button>
-                </>
-            )
-        } else if (estado === 6) {
-            // Renderizar en estado pausa
-            return (
-                <>
-                    <button onClick={() => changeStateCard(id, 3)}>
-                        <FaPlay className='status-icon' title='Reactivar Campaña' />
-                    </button>
-                </>
-            )
-        } else if (estado === 5) {
-            // Renderizar en estado pausa
-            return (
-                <>
-                    <button onClick={() => changeStateCard(id, 6)}>
-                        <FaTrash className='status-icon' title='Eliminar Campaña' />
-                    </button>
-                </>
-            )
-        }
-    }
+    // const changeStateCard = async (id, estado) => {
+    //     try {
+    //         const response = await postWspState(id, estado);
+    //         Swal.fire({
+    //             icon: 'success',
+    //             title: 'Éxito',
+    //             color: '#ffffff',
+    //             background: '#111111',
+    //             // text: `El estado de la campaña se ha cambiado exitosamente.`,
+    //             showConfirmButton: false,
+    //             timer: 2000,
+    //             customClass: {
+    //                 popup: 'my-swal-popup' // Añade una clase personalizada al modal
+    //             }
+    //         });
+    //         await fetchSummaryData(false); // Refrescar los datos después de cambiar el estado
+    //         console.log('Cambio exitoso', response.message);
+    //     } catch (error) {
+    //         Swal.fire({
+    //             icon: 'error',
+    //             background: '#111111',
+    //             title: 'Error',
+    //             // text: `Hubo un error al cambiar el estado de la campaña. Inténtalo de nuevo.`,
+    //             customClass: {
+    //                 popup: 'my-swal-popup' // Añade una clase personalizada al modal
+    //             }
+    //         });
+    //         console.error('Error al cambiar el estado de la campaña:', error);
+    //     }
+    // };
 
     return (
         <div className="dashboard-container">
 
             {/* LEYENDA RESPOSIVO */}
             <div className='box-leyend-responsive' style={{ display: 'none', gap: '10px' }} >
-                <div className='leyend-pause' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                {/* <div className='leyend-pause' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
                     <FaCircle />
                     <p>Pausa</p>
                 </div>
@@ -286,10 +237,10 @@ function Campanas() {
                     <FaCircle />
                     <p>Pendiente</p>
                 </div>
-                {/* <div className='leyend-cancel' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
-                        <FaCircle />
-                        <p>Cancelar</p>
-                    </div> */}
+                <div className='leyend-cancel' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                    <FaCircle />
+                    <p>Cancelar</p>
+                </div> */}
                 <div className='leyend-sending' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
                     <FaCircle />
                     <p>Enviando</p>
@@ -301,9 +252,9 @@ function Campanas() {
             </div>
 
             <div className="header">
-                <h1>Campañas WSP</h1>
+                <h1>Campañas Call</h1>
                 <div className='box-leyend' style={{ display: 'flex', gap: '20px' }} >
-                    <div className='leyend-pause' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                    {/* <div className='leyend-pause' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
                         <FaCircle />
                         <p>Pausa</p>
                     </div>
@@ -311,7 +262,7 @@ function Campanas() {
                         <FaCircle />
                         <p>Pendiente</p>
                     </div>
-                    {/* <div className='leyend-cancel' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
+                    <div className='leyend-cancel' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
                         <FaCircle />
                         <p>Cancelar</p>
                     </div> */}
@@ -338,53 +289,64 @@ function Campanas() {
                     {summaryData.length > 0 ? (
                         summaryData.map((item, index) => (
                             <div
-                                className={`card ${item.idestado === 3
-                                    ? 'card-pause'
-                                    : item.idestado === 0
-                                        ? 'card-pending'
-                                        : item.idestado === 6
-                                            ? 'card-cancel'
-                                            : item.idestado === 4
-                                                ? 'card-sending'
-                                                : item.idestado === 5
-                                                    ? 'card-completed'
-                                                    : ''
-                                    }`}
+                                className={`card ${item.sin_enviar === 0 ? 'card-completed' : 'card-sending'}`}
                                 key={index}
                             >
                                 <div className="card-header">
                                     <div className='box-data'>
-                                        <span className="fecha">{new Date(item.fechaHora).toLocaleDateString()}</span>
-                                        <span className="hora">{new Date(item.fechaHora).toLocaleTimeString()}</span>
+                                        <div className='data-fecha'>
+                                            <span className="fecha">{new Date(item.fecha_creacion).toLocaleDateString()}</span>
+                                            <span className="hora">{new Date(item.fecha_creacion).toLocaleTimeString()}</span>
+                                        </div>
+                                    </div>
+                                    <div className='data-duration'>
+                                        <FaHourglassStart />
+                                        <span className="status">{parseFloat(item.promedio_duracion).toFixed(2)}</span>
                                     </div>
                                     {/* Condiciones para renderizar botones en card */}
-                                    <div className='box-buttons'>
-                                        {renderButtons(item.idcampania, item.idestado)}
-                                    </div>
+                                    {/* <div className='box-buttons'>
+                                        {renderButtons(item.id, item.idestado)}
+                                    </div> */}
                                 </div>
                                 <div className="card-campaign-name">
-                                    <h3>{item.campania}</h3>
+                                    <h3>{item.nombre_campana}</h3>
                                 </div>
                                 <div className="box-view">
-                                    <div className='view' onClick={() => handleViewClick(item.idcampania)}>
-                                        <p>Ver contenido</p>
-                                        <FaEye className="status-icon" />
+                                    <div className='view' onClick={() => handleViewClick(item.audio_url)}>
+                                        <p>Reproducir audio</p>
+                                        <FaFileAudio className="status-icon" />
                                     </div>
                                     {/* Contenido que se expande al hacer clic */}
-                                    <div className={`content ${expandedId === item.idcampania ? 'show' : ''}`}>
+                                    <div className={`content ${expandedId === item.audio_url ? 'show' : ''}`}>
                                         {item.mensaje}
+                                    </div>
+                                </div>
+                                <div className='card-time'>
+                                    <div className='box-data-card'>
+                                        <FaRegFlag />
+                                        <div className='card-data'>
+                                            <span className="fecha">{new Date(item.fecha_envio_inicio).toLocaleDateString()}</span>
+                                            <span className="hora">{new Date(item.fecha_envio_inicio).toLocaleTimeString()}</span>
+                                        </div>
+                                    </div>
+                                    <div className='box-data-card'>
+                                        <FaFlagCheckered />
+                                        <div className='card-data'>
+                                            <span className="fecha">{new Date(item.fecha_envio_fin).toLocaleDateString()}</span>
+                                            <span className="hora">{new Date(item.fecha_envio_fin).toLocaleTimeString()}</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="card-body">
                                     <div className="status-group">
                                         <div className="status-item pendiente">
-                                            <FaClock className="status-icon" /> {item.pendiente}
+                                            <FaClock className="status-icon" /> {item.sin_enviar}
                                         </div>
                                         <div className="status-item success">
-                                            <FaCheckCircle className="status-icon" /> {item.enviado}
+                                            <FaCheckCircle className="status-icon" /> {item.enviados}
                                         </div>
                                         <div className="status-item error">
-                                            <FaTimesCircle className="status-icon" /> {item.error}
+                                            <FaTimesCircle className="status-icon" /> {item.fallidos}
                                         </div>
                                         <div className="status-item total">
                                             <span className="total-label">Total</span>

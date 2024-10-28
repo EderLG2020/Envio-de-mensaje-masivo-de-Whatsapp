@@ -421,24 +421,6 @@ input[type="file"] {
 
 /* Estilo especial para tarjetas en estado pendiente */
 
-.card-pause {
-    box-shadow: 0px 0px 10px 1px #bfa70d;
-    background: radial-gradient(circle at 50% -50%, #f3d512 1%, var(--color-sidebar-card) 55%);
-    border: 1px solid #f3d512;
-}
-
-.card-pending {
-    box-shadow: 0px 0px 10px 1px #945900;
-    background: radial-gradient(circle at 50% -50%, #ff9800 1%, var(--color-sidebar-card) 55%);
-    border: 1px solid #ff9800;
-}
-
-.card-cancel {
-    box-shadow: 0px 0px 10px 1px #8d2f24;
-    background: radial-gradient(circle at 50% -50%, #e74c3c 1%, var(--color-sidebar-card) 55%);
-    border: 1px solid #e74c3c;
-}
-
 .card-sending {
     box-shadow: 0px 0px 10px 1px #21608a;
     background: radial-gradient(circle at 50% -50%, #3498db 1%, var(--color-sidebar-card) 55%);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { AiOutlineDashboard, AiOutlineAppstore, AiOutlineThunderbolt, AiOutlineLogout } from 'react-icons/ai';
+import { AiOutlineWhatsApp, AiOutlineAppstore, AiOutlineThunderbolt, AiOutlineLogout, AiOutlinePhone } from 'react-icons/ai';
 import { FaCog, FaSignOutAlt } from 'react-icons/fa';
 import { IoMenu } from "react-icons/io5";
 import './Sidebar.css';
@@ -86,8 +86,17 @@ const Sidebar = () => {
                             to="/campanas"
                             className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
                         >
-                            <AiOutlineThunderbolt />
-                            <span>Campañas</span>
+                            <AiOutlineWhatsApp />
+                            <span>Camp WSP</span>
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink
+                            to="/campanasCall"
+                            className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+                        >
+                            <AiOutlinePhone />
+                            <span>Camp call</span>
                         </NavLink>
                     </li>
                 </ul>
