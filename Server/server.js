@@ -283,6 +283,28 @@ app.get('/api/send-call/resumenCall', async (req, res) => {
     }
 });
 
+app.post('/api/send-call/startCall', async (req, res) => {
+    const { campaign, numbers, audio_url } = req.body
+    try {
+        const response = await axios.post('http://5.161.42.50:3000/start-call', {
+            campaign: campaign,
+            numbers: numbers,
+            audio_url: audio_url
+        });
+        const responseData = {
+            message: response.data,
+        }
+
+        res.status(response.status).json(responseData);
+    } catch (error) {
+        console.error('Error al cargar archivo:', error.response.data || error.message);
+        res.status(400).json({
+            message: error.response?.data.message || 'Error al cargar archivo.',
+            status: 400
+        });
+    }
+})
+
 app.post('/api/login', async (req, res) => {
     const { idacceso, contraseña } = req.body;
     try {

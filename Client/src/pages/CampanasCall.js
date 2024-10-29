@@ -1,22 +1,40 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './CampanasCall.css';
 import * as XLSX from 'xlsx';
-import { registerCampaign, getCallSummary, postWspState } from '../api';
+import { registerCamapaingCall, getCallSummary } from '../api';
 import Swal from 'sweetalert2';
 import Spinner from '../components/Spinner';
 import { FaCheckCircle, FaTimesCircle, FaClock, FaPause, FaFileAudio, FaPlay, FaTrash, FaWindowClose, FaCircle, FaHourglassStart, FaRegFlag, FaFlagCheckered } from 'react-icons/fa';
 
+// Función para subir una imagen (en este caso, un archivo de audio) a la API y devolver la URL
+async function uploadAudioToApi(file) {
+    const formData = new FormData();
+    formData.append('bucket', 'dify');
+    formData.append('file', file, file.name);
 
+    try {
+        const response = await fetch('https://cloud.3w.pe/media', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await response.json();
+
+        console.log(`Audio ${file.name} subido exitosamente: ${data.url}`);
+
+        return data.url;
+    } catch (error) {
+        console.error(`Error subiendo el audio ${file.name}:`, error);
+        throw error;
+    }
+}
 
 function Campanas() {
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [campaignName, setCampaignName] = useState('');
-    const [campaignTitle, setCampaignTitle] = useState('');
-    const [campaignText, setCampaignText] = useState('');
     const [rowCount, setRowCount] = useState(0);
-    const [selectedType, setSelectedType] = useState('texto');
     const [selectedFile, setSelectedFile] = useState(null);
     const [telefonosNombres, setTelefonosNombres] = useState([]);
+    const [selectedAudio, setSelectedAudio] = useState(null); // Estado para el archivo de audio
     const [summaryData, setSummaryData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(null);
@@ -27,10 +45,9 @@ function Campanas() {
         if (showLoading) setLoading(true);
         try {
             const data = await getCallSummary();
-            // Ordenar por fecha de creación descendente
             setSummaryData(data.sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion)));
         } catch (error) {
-            console.error('Error al obtener el resumen de WhatsApp:', error);
+            console.error('Error al obtener el resumen de campañas:', error);
         } finally {
             if (showLoading) setLoading(false);
         }
@@ -49,23 +66,19 @@ function Campanas() {
 
     const openModal = () => {
         setCampaignName('');
-        setCampaignTitle('');
-        setCampaignText('');
         setRowCount(0);
         setTelefonosNombres([]);
         setSelectedFile(null);
-        setSelectedType('texto');
+        setSelectedAudio(null);
         setModalIsOpen(true);
     };
 
     const closeModal = () => {
         setCampaignName('');
-        setCampaignTitle('');
-        setCampaignText('');
         setRowCount(0);
         setTelefonosNombres([]);
         setSelectedFile(null);
-        setSelectedType('texto');
+        setSelectedAudio(null);
         setModalIsOpen(false);
     };
 
@@ -79,39 +92,32 @@ function Campanas() {
         setCampaignName(e.target.value);
     };
 
-    const handleTitleChange = (e) => {
-        setCampaignTitle(e.target.value);
-    };
-
-    const handleTextChange = (e) => {
-        setCampaignText(e.target.value);
-    };
-
-    const handleTypeChange = (e) => {
-        setSelectedType(e.target.value);
-    };
-
-    const handleFileUpload = (e) => {
+    // Controlador para manejar la carga del archivo Excel
+    const handleExcelUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        setSelectedFile(file.name);
-        setRowCount(0); // Reinicia el contador de registros
-        setTelefonosNombres([]); // Reinicia la lista de registros
+        setSelectedFile(file); // Guardar el archivo completo, no solo el nombre
+        setRowCount(0);
+        setTelefonosNombres([]);
 
         const reader = new FileReader();
         reader.onload = (event) => {
             const data = new Uint8Array(event.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(firstSheet);
+            const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); // Obtener todas las filas como matriz
 
-            // Asegurarse de que cada `Nevio` sea una cadena y si no tiene un nombre asignado, usar una cadena vacía
-            const validRows = rows.filter(row => row.Telefono); // Filtra solo por teléfono
-            const telefonosNombresArray = validRows.map(row => ({
-                Tenvio: String(row.Telefono),
-                Nevio: row.Nombre ? String(row.Nombre) : ""  // Si 'Nombre' no existe, asignar una cadena vacía
-            }));
+            // Filtrar solo las filas a partir de la fila 2 (es decir, omitir el encabezado)
+            const validRows = rows.slice(1).filter(row => row[0]); // Saltar la primera fila y filtrar filas vacías
+
+            // Crear un array con el número de fila y el número de teléfono alternados
+            const telefonosNombresArray = [];
+            validRows.forEach((row) => {
+                // const filaNumero = index + 2; // Index + 2 para reflejar la fila real en el Excel
+                // telefonosNombresArray.push(String(filaNumero)); // Número de la fila como string
+                telefonosNombresArray.push(String(row[0])); // Teléfono como string
+            });
 
             setRowCount(validRows.length);
             setTelefonosNombres(telefonosNombresArray);
@@ -119,9 +125,25 @@ function Campanas() {
         reader.readAsArrayBuffer(file);
     };
 
+    const handleAudioUpload = (e) => {
+        const file = e.target.files[0];
+        if (file && file.type === "audio/wav") { // Validar que sea un archivo WAV
+            setSelectedAudio(file);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Por favor, selecciona un archivo de audio válido (formato WAV).',
+                background: '#111111',
+                customClass: {
+                    popup: 'my-swal-popup'
+                }
+            });
+        }
+    };
 
     const validateFields = () => {
-        if (!campaignName || !campaignTitle || !campaignText || rowCount === 0) {
+        if (!campaignName || rowCount === 0) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -140,13 +162,16 @@ function Campanas() {
         if (!validateFields()) return;
 
         try {
-            await registerCampaign(
+
+            // Subir el archivo de audio al bucket antes de registrar la campaña
+            const audioUrl = await uploadAudioToApi(selectedAudio);
+
+            // Llamar a la API para registrar la campaña
+            await registerCamapaingCall(
                 campaignName,
-                campaignTitle,
-                campaignText,
-                selectedType,
-                rowCount,
-                telefonosNombres
+                // rowCount,
+                telefonosNombres,
+                audioUrl // Enviando el archivo de audio
             );
 
             Swal.fire({
@@ -157,12 +182,12 @@ function Campanas() {
                 timer: 2000,
                 background: '#111111',
                 customClass: {
-                    popup: 'my-swal-popup' // Añade una clase personalizada al modal
+                    popup: 'my-swal-popup'
                 }
             });
 
             closeModal();
-            await fetchSummaryData(false); // Actualiza la pantalla en tiempo real sin mostrar loading
+            await fetchSummaryData(false);
         } catch (error) {
             console.error('Error al registrar la campaña:', error);
             Swal.fire({
@@ -171,7 +196,7 @@ function Campanas() {
                 text: 'Ocurrió un error al registrar la campaña. Inténtalo de nuevo.',
                 background: '#111111',
                 customClass: {
-                    popup: 'my-swal-popup' // Añade una clase personalizada al modal
+                    popup: 'my-swal-popup'
                 }
             });
         }
@@ -193,54 +218,12 @@ function Campanas() {
         });
     };
 
-    // const changeStateCard = async (id, estado) => {
-    //     try {
-    //         const response = await postWspState(id, estado);
-    //         Swal.fire({
-    //             icon: 'success',
-    //             title: 'Éxito',
-    //             color: '#ffffff',
-    //             background: '#111111',
-    //             // text: `El estado de la campaña se ha cambiado exitosamente.`,
-    //             showConfirmButton: false,
-    //             timer: 2000,
-    //             customClass: {
-    //                 popup: 'my-swal-popup' // Añade una clase personalizada al modal
-    //             }
-    //         });
-    //         await fetchSummaryData(false); // Refrescar los datos después de cambiar el estado
-    //         console.log('Cambio exitoso', response.message);
-    //     } catch (error) {
-    //         Swal.fire({
-    //             icon: 'error',
-    //             background: '#111111',
-    //             title: 'Error',
-    //             // text: `Hubo un error al cambiar el estado de la campaña. Inténtalo de nuevo.`,
-    //             customClass: {
-    //                 popup: 'my-swal-popup' // Añade una clase personalizada al modal
-    //             }
-    //         });
-    //         console.error('Error al cambiar el estado de la campaña:', error);
-    //     }
-    // };
 
     return (
         <div className="dashboard-container">
 
             {/* LEYENDA RESPOSIVO */}
             <div className='box-leyend-responsive' style={{ display: 'none', gap: '10px' }} >
-                {/* <div className='leyend-pause' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
-                    <FaCircle />
-                    <p>Pausa</p>
-                </div>
-                <div className='leyend-send' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
-                    <FaCircle />
-                    <p>Pendiente</p>
-                </div>
-                <div className='leyend-cancel' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
-                    <FaCircle />
-                    <p>Cancelar</p>
-                </div> */}
                 <div className='leyend-sending' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
                     <FaCircle />
                     <p>Enviando</p>
@@ -254,18 +237,6 @@ function Campanas() {
             <div className="header">
                 <h1>Campañas Call</h1>
                 <div className='box-leyend' style={{ display: 'flex', gap: '20px' }} >
-                    {/* <div className='leyend-pause' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
-                        <FaCircle />
-                        <p>Pausa</p>
-                    </div>
-                    <div className='leyend-send' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
-                        <FaCircle />
-                        <p>Pendiente</p>
-                    </div>
-                    <div className='leyend-cancel' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
-                        <FaCircle />
-                        <p>Cancelar</p>
-                    </div> */}
                     <div className='leyend-sending' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} >
                         <FaCircle />
                         <p>Enviando</p>
@@ -277,7 +248,7 @@ function Campanas() {
                 </div>
                 <div className="button-group">
                     <button onClick={openModal} className="crear-campana-btn">Crear Campaña</button>
-                    <a href="/plantilla.xlsx" download>
+                    <a href="/plantillaCall.xlsx" download>
                         <button className="descargar-btn">Descargar Plantilla</button>
                     </a>
                 </div>
@@ -303,10 +274,6 @@ function Campanas() {
                                         <FaHourglassStart />
                                         <span className="status">{parseFloat(item.promedio_duracion).toFixed(2)}</span>
                                     </div>
-                                    {/* Condiciones para renderizar botones en card */}
-                                    {/* <div className='box-buttons'>
-                                        {renderButtons(item.id, item.idestado)}
-                                    </div> */}
                                 </div>
                                 <div className="card-campaign-name">
                                     <h3>{item.nombre_campana}</h3>
@@ -318,7 +285,7 @@ function Campanas() {
                                     </div>
                                     {/* Contenido que se expande al hacer clic */}
                                     <div className={`content ${expandedId === item.audio_url ? 'show' : ''}`}>
-                                        {item.mensaje}
+                                        {/* {item.mensaje} */}
                                     </div>
                                 </div>
                                 <div className='card-time'>
@@ -388,49 +355,26 @@ function Campanas() {
                             </div>
 
                             <div className="form-group">
-                                <label htmlFor="campaignTitle">Título de la Campaña</label>
-                                <input
-                                    type="text"
-                                    id="campaignTitle"
-                                    placeholder="Título de la Campaña"
-                                    value={campaignTitle}
-                                    onChange={handleTitleChange}
-                                    className="input-field"
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="campaignText">Contenido de la Campaña</label>
-                                <textarea
-                                    id="campaignText"
-                                    value={campaignText}
-                                    onChange={handleTextChange}
-                                    maxLength={255}
-                                    placeholder="Escribe el contenido de tu campaña"
-                                    className="textarea-field"
-                                />
-                                <p className="char-counter">{campaignText.length}/255 caracteres</p>
-                            </div>
-
-                            <div className="form-group">
                                 <label>Adjuntar Archivo Excel</label>
                                 <div className="file-input-wrapper">
-                                    <label className="file-input-label" htmlFor="file-upload">Seleccionar archivo</label>
-                                    <input type="file" id="file-upload" onChange={handleFileUpload} />
+                                    <label className="file-input-label" htmlFor="excel-upload">Seleccionar archivo</label>
+                                    <input type="file" id="excel-upload" onChange={handleExcelUpload} />
                                     <span className="file-selected">
-                                        {selectedFile || 'Sin archivos seleccionados'}
+                                        {selectedFile ? selectedFile.name : 'Sin archivos seleccionados'}
                                     </span>
                                 </div>
                                 {rowCount > 0 && <p className="record-count">Registros detectados: {rowCount}</p>}
                             </div>
 
                             <div className="form-group">
-                                <label htmlFor="tipo">Tipo de Campaña</label>
-                                <select id="tipo" value={selectedType} onChange={handleTypeChange} className="select-field">
-                                    <option value="texto">Texto</option>
-                                    <option value="imagen">Imagen</option>
-                                    <option value="video">Video</option>
-                                </select>
+                                <label>Adjuntar Audio (WAV)</label>
+                                <div className="file-input-wrapper">
+                                    <label className="file-input-label" htmlFor="audio-upload">Seleccionar archivo</label>
+                                    <input type="file" id="audio-upload" onChange={handleAudioUpload} accept="audio/wav" />
+                                    <span className="file-selected">
+                                        {selectedAudio ? selectedAudio.name : 'Sin archivos seleccionados'}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="custom-modal-actions">

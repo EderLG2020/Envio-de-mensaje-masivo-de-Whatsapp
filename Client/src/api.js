@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 // Base URL para la API
-const API_URL = 'http://10.10.2.59:5000/api';
+// const API_URL = 'http://10.10.2.59:5000/api';
+const API_URL = 'http://10.10.10.3:5000/api';
 
 // Función para obtener las instancias
 export const fetchInstances = async () => {
@@ -134,14 +135,31 @@ export const postWspState = async (idcampania, estado) => {
 
 export const getCallSummary = async () => {
     try {
-        // const response = await axios.get(`${API_URL}/send-call/resumenCall`);
-        const response = await axios.get('http://5.161.42.50:3000/campaigns');
+        const response = await axios.get(`${API_URL}/send-call/resumenCall`);
+        // const response = await axios.get('http://5.161.42.50:3000/campaigns');
         return response.data;
     } catch (error) {
         console.error('Error fetching WhatsApp summary:', error);
         throw error.response?.data || error;
     }
 };
+
+// Función para registrar una campaña de WhatsApp usando la API local
+export const registerCamapaingCall = async (campaign, numbers, audio_url) => {
+    try {
+        // const response = await axios.post(`${API_URL}/send-call/startCall`, {
+        const response = await axios.post('http://5.161.42.50:3000/start-call', {
+            campaign: campaign,
+            numbers: numbers,
+            audio_url: audio_url
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error registering campaign:', error);
+        throw error.response?.data || error;
+    }
+};
+
 
 export const login = async (idacceso, contraseña) => {
     try {
