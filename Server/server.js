@@ -102,11 +102,13 @@ app.post('/api/send-whatsapp/registro', async (req, res) => {
     try {
         // Realizar la solicitud POST a la API externa con el nuevo formato de body
         const response = await axios.post(`${EXTERNAL_API_BASE_URL}/api/sendwhatsapp/Registro`, {
+            // const response = await axios.post('http://10.10.10.10:5000/api/sendwhatsapp/Registro', {
             Campania,
             Titulo,
             Mensaje,
             Tipo,
             Cantidad,
+            Empresa,
             TelefonosNombres
         });
 
@@ -127,10 +129,42 @@ app.post('/api/send-whatsapp/registro', async (req, res) => {
 
 
 // Ruta GET para obtener el resumen
+// app.get('/api/send-whatsapp/resumen', async (req, res) => {
+//     try {
+//         const response = await axios.get(`${EXTERNAL_API_BASE_URL}/api/sendwhatsapp/resumen`);
+
+//         res.status(response.status).json(response.data);
+//     } catch (error) {
+//         console.error('Error al obtener el resumen de WhatsApp:', error.response?.data || error.message);
+
+//         if (error.response) {
+//             // Si la API externa devuelve un error, reenviamos la respuesta original
+//             res.status(error.response.status).json(error.response.data);
+//         } else {
+//             // Si hay un error de conexión u otro tipo, devolvemos un error genérico
+//             res.status(500).json({ message: 'Error en el servidor o en la conexión a la API externa.' });
+//         }
+//     }
+// });
+
+// Ruta GET para obtener el resumen
 app.get('/api/send-whatsapp/resumen', async (req, res) => {
     try {
-        const response = await axios.get(`${EXTERNAL_API_BASE_URL}/api/sendwhatsapp/resumen`);
+        // Obtener el parámetro empresa de la consulta (query)
+        const { empresa } = req.query;
 
+        // Definir los parámetros para la solicitud a la API externa
+        const params = {};
+
+        if (empresa) {
+            params.empresa = empresa;  // Añadir el parámetro empresa si está definido
+        }
+
+        // Hacer la solicitud GET a la API externa, pasando los parámetros de consulta
+        const response = await axios.get(`${EXTERNAL_API_BASE_URL}/api/sendwhatsapp/resumen`, { params });
+        // const response = await axios.get('http://10.10.10.10:5000/api/sendwhatsapp/resumen', { params });
+
+        // Devolver la respuesta de la API externa
         res.status(response.status).json(response.data);
     } catch (error) {
         console.error('Error al obtener el resumen de WhatsApp:', error.response?.data || error.message);

@@ -93,11 +93,13 @@ export const sendWhatsApp = async (idmensaje, Tenvio, Ninstancia, Cenvio) => {
 export const registerCampaign = async (campania, titulo, mensaje, tipo, cantidad, telefonosNombres) => {
     try {
         const response = await axios.post(`${API_URL}/send-whatsapp/registro`, {
+            // const response = await axios.post('http://10.10.10.10:5000/api/sendwhatsapp/Registro', {
             Campania: campania,
             Titulo: titulo,
             Mensaje: mensaje,
             Tipo: tipo,
             Cantidad: cantidad,
+            Empresa: "Yego",
             TelefonosNombres: telefonosNombres  // Se envía el array de objetos con Tenvio y Nevio
         });
         return response.data;
@@ -108,10 +110,28 @@ export const registerCampaign = async (campania, titulo, mensaje, tipo, cantidad
 };
 
 
+// // Función para obtener el resumen de WhatsApp usando la API local
+// export const getWhatsAppSummary = async () => {
+//     try {
+//         const response = await axios.get(`${API_URL}/send-whatsapp/resumen`);
+//         // const response = await axios.get('http://10.10.10.10:5000/api/sendwhatsapp/resumen');
+//         return response.data;
+//     } catch (error) {
+//         console.error('Error fetching WhatsApp summary:', error);
+//         throw error.response?.data || error;
+//     }
+// };
+
 // Función para obtener el resumen de WhatsApp usando la API local
 export const getWhatsAppSummary = async () => {
     try {
-        const response = await axios.get(`${API_URL}/send-whatsapp/resumen`);
+        // Añadir el parámetro empresa con valor 'Monterrico'
+        const response = await axios.get(`${API_URL}/send-whatsapp/resumen`, {
+            params: {
+                empresa: 'Yego'
+            }
+        });
+
         // const response = await axios.get('http://10.10.10.10:5000/api/sendwhatsapp/resumen');
         return response.data;
     } catch (error) {
