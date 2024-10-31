@@ -97,7 +97,7 @@ app.post('/api/send-whatsapp/envio', async (req, res) => {
 
 // Ruta POST para registrar la campaña
 app.post('/api/send-whatsapp/registro', async (req, res) => {
-    const { Campania, Titulo, Mensaje, Tipo, Cantidad, TelefonosNombres } = req.body;
+    const { Campania, Titulo, Mensaje, Tipo, Cantidad, Empresa, TelefonosNombres } = req.body;
 
     try {
         // Realizar la solicitud POST a la API externa con el nuevo formato de body
