@@ -175,6 +175,7 @@ function Campanas() {
   };
 
   const handleSubmit = async () => {
+    setLoading(true);
     if (!validateFields()) return;
 
     // Cargar spinner mientras se va realizando la peticion, tomar spinner
@@ -217,6 +218,8 @@ function Campanas() {
         },
       });
       closeModal();
+    } finally {
+      setLoading(false);
     }
   };
 
