@@ -12,8 +12,6 @@
   --color-succes-confirm: #28a745;
 }
 
-.app-container {}
-
 .sidebar.closed {
   width: 80px;
 }
@@ -101,6 +99,7 @@
 
 .logout-button:hover {
   color: var(--color-logout);
+  cursor: pointer;
 }
 
 p {

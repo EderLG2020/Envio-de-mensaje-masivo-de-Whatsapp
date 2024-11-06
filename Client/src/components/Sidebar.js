@@ -3,11 +3,9 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   AiOutlineWhatsApp,
   AiOutlineAppstore,
-  AiOutlineThunderbolt,
   AiOutlineLogout,
   AiOutlinePhone,
 } from "react-icons/ai";
-import { FaCog, FaSignOutAlt } from "react-icons/fa";
 import { IoMenu } from "react-icons/io5";
 import "./Sidebar.css";
 import logo from "../assets/logo.png";
