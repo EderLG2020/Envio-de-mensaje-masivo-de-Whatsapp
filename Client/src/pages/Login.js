@@ -9,10 +9,15 @@ function Login() {
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
   // Hook para redirigir
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      navigate("/campanas", { replace: true });
+    }
+  }, [navigate]);
   // Función para manejar el inicio de sesión
   const handleLogin = async () => {
     try {
