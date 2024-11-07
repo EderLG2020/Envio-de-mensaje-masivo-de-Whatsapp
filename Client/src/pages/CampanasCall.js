@@ -191,7 +191,8 @@ function Campanas() {
         telefonosNombres,
         audioUrl // Enviando el archivo de audio
       );
-
+      closeModal();
+      await fetchSummaryData(false);
       Swal.fire({
         icon: "success",
         title: "Éxito",
@@ -203,9 +204,6 @@ function Campanas() {
           popup: "my-swal-popup",
         },
       });
-      closeModal();
-
-      await fetchSummaryData(false);
     } catch (error) {
       console.error("Error al registrar la campaña:", error);
       Swal.fire({
