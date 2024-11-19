@@ -6,18 +6,18 @@
     align-items: center;
     width: 100%;
     height: 100vh;
-    /* background-image: url(../assets/ima_login.png); */
+    background-image: url(../assets/ima_login.png) !important;
     /* background-color: aqua; */
     background-repeat: no-repeat;
     background-position: bottom;
     background-size: cover;
 }
 
-.background-login {
+/* .background-login {
     position: fixed;
     top: 0;
     height: 100%;
-}
+} */
 
 .contentLogin {
     position: relative;

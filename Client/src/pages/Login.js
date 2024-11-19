@@ -59,7 +59,7 @@ function Login() {
 
     return (
         <div className='body'>
-            <img className='background-login' src={background} />
+            {/* <img className='background-login' src={background} /> */}
             <div className='contentLogin'>
                 <div className='boximage'>
                     <img className='image' src={logo} alt="Isotipo" />
