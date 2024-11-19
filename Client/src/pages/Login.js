@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'; // Importar useNavigate para red
 import './Login.css';
 import { login } from '../api';
 import logo from '../assets/isotipo.png';
+import background from '../assets/ima_login.png'
 
 function Login() {
     // Definir estados para usuario, contraseña y mensajes de error
@@ -58,6 +59,7 @@ function Login() {
 
     return (
         <div className='body'>
+            <img className='background-login' src={background} />
             <div className='contentLogin'>
                 <div className='boximage'>
                     <img className='image' src={logo} alt="Isotipo" />
