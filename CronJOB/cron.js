@@ -79,7 +79,7 @@ async function getActiveInstances() {
 // Obtener el próximo mensaje de la cola de envío
 async function getNextQueueMessage() {
     try {
-        const response = await axios.get('http://188.245.38.255:5000/api/sendwhatsapp/colaenvio');
+        const response = await axios.get('http://188.245.38.255:5000/api/sendwhatsapp/colaenvio/?empresa=yego');
 
         if (response.data.message === "No hay registros en la cola de envío.") {
             return null;
