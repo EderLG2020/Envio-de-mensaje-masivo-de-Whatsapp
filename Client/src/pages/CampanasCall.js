@@ -162,13 +162,14 @@ function Campanas() {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Todos los campos deben estar completos y debes adjuntar un archivo válido.",
+        text: "Todos los campos deben estar completos y debes adjuntar un archivo válidos.",
         customClass: {
           popup: "my-swal-popup", // Añade una clase personalizada al modal
         },
         background: "#111111",
       });
       closeModal();
+      setLoading(false);
       return false;
     }
     return true;
