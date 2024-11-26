@@ -164,7 +164,7 @@ function Campanas() {
         title: "Error",
         text: "Todos los campos deben estar completos y debes adjuntar un archivo válidos.",
         customClass: {
-          popup: "my-swal-popup",
+          popup: "my-swal-popup", // Añade una clase personalizada al modal
         },
         background: "#111111",
       });
