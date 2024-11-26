@@ -1,9 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import "./CampanasCall.css";
 import * as XLSX from "xlsx";
-import { registerCamapaingCall, getCallSummary } from "../api";
+import {
+  registerCamapaingCall,
+  getCallSummary,
+  deleteCampaignApi,
+} from "../api";
 import Swal from "sweetalert2";
 import Spinner from "../components/Spinner";
+import { MdDelete } from "react-icons/md";
+
 import {
   FaCheckCircle,
   FaTimesCircle,
@@ -222,6 +228,109 @@ function Campanas() {
     }
   };
 
+  // Función que simula la eliminación desde un API
+  const deleteCampaignFromAPI = async (itemId) => {
+    try {
+      // Usamos la respuesta directamente de 'deleteCampaignApi'
+      const response = await deleteCampaignApi(itemId);
+
+      // Devolvemos la respuesta de la API, que es un objeto con { success, message }
+      return response;
+    } catch (error) {
+      console.error("Error al eliminar la campaña:", error);
+      return {
+        success: 3,
+        message: "Error al conectar con la API. Intenta de nuevo.",
+      };
+    }
+  };
+
+  const deleteCampaign = async (item) => {
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción eliminará el registro permanentemente, incluyendo los registros de llamada relacionados.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      customClass: {
+        popup: "my-swal-popup",
+      },
+      background: "#111111",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const { success, message } = await deleteCampaignFromAPI(item.id);
+
+        console.log("success: ", success, "message: ", message);
+
+        // Configuración del modal según el éxito
+        const swalOptions = {
+          1: {
+            title: "¡Eliminado!",
+            text:
+              message ||
+              "El registro y sus llamadas relacionadas se eliminaron correctamente.",
+            icon: "success",
+          },
+          2: {
+            title: "Campaña no encontrada",
+            text:
+              message || "La campaña no fue encontrada o ya ha sido eliminada.",
+            icon: "info",
+          },
+          3: {
+            title: "Error",
+            text:
+              message || "No se pudo eliminar el registro. Intenta de nuevo.",
+            icon: "error",
+          },
+        };
+
+        // Mostrar el modal correspondiente
+        await Swal.fire({
+          ...(swalOptions[success] || {
+            title: "Error desconocido",
+            text: "Ocurrió un error inesperado. Intenta de nuevo.",
+            icon: "error",
+          }),
+          timer: 2000,
+          showConfirmButton: false,
+          customClass: {
+            popup: "my-swal-popup",
+          },
+          background: "#111111",
+        });
+
+        // Log según el éxito
+        if (success === 1) {
+          console.log("Eliminado correctamente: ", item.id);
+        } else if (success === 2) {
+          console.log("Campaña no encontrada o ya eliminada: ", item.id);
+        } else {
+          console.error("Error al eliminar: ", item.id);
+        }
+      } catch (error) {
+        await Swal.fire({
+          title: "Error",
+          text: "No se pudo eliminar el registro. Inténtalo de nuevo.",
+          icon: "error",
+          timer: 2000,
+          showConfirmButton: false,
+          customClass: {
+            popup: "my-swal-popup",
+          },
+          background: "#111111",
+        });
+
+        console.error("Error al eliminar: ", error);
+      }
+    } else {
+      console.log("Eliminación cancelada.");
+    }
+  };
+
   const handleViewClick = (audioUrl) => {
     Swal.fire({
       title: "Reproducción",
@@ -338,8 +447,17 @@ function Campanas() {
                     </span>
                   </div>
                 </div>
-                <div className="card-campaign-name">
-                  <h3>{item.nombre_campana}</h3>
+
+                <div className="card-campaign-name d-flex">
+                  <div className="containerItemNombre">
+                    <h3 className="box-data">{item.nombre_campana} </h3>
+                    <div
+                      onClick={() => deleteCampaign(item)}
+                      className="btnDelete"
+                    >
+                      <MdDelete />
+                    </div>
+                  </div>
                 </div>
                 <div className="box-view">
                   <div

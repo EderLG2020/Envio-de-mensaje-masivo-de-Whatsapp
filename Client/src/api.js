@@ -63,6 +63,25 @@ export const generateQrCode = async (instanceName) => {
   }
 };
 
+export const deleteCampaignApi = async (itemId) => {
+  try {
+    const responseDeleteCam = await axios.delete(
+      `http://5.161.42.50:3000/campaigns/deleteCampaign`,
+      {
+        data: { idCampaign: itemId }, // Pasamos 'idCampaign' en el cuerpo de la solicitud
+      }
+    );
+
+    return responseDeleteCam.data;
+  } catch (error) {
+    console.log("Error en eliminar campaña: ", error);
+    return {
+      success: 3,
+      message: "Error al conectar con la API. Intenta de nuevo.",
+    };
+  }
+};
+
 export const checkInstanceExists = async (name) => {
   try {
     // Llamada a la API para obtener todas las instancias

@@ -270,6 +270,33 @@ app.delete("/api/delete-instance/:instanceName", async (req, res) => {
   }
 });
 
+// Ruta para eliminar una instancia
+app.delete("/api/delete-campaign/", async (req, res) => {
+  const { instanceName } = req.body;
+
+  try {
+    const response = await axios.delete(
+      `${API_BASE_URL}/instance/delete/${instanceName}`,
+      {
+        headers: {
+          apikey: API_KEY,
+        },
+      }
+    );
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Error al eliminar la instancia:",
+      error.response?.data || error.message
+    );
+    res.status(error.response?.status || 400).json({
+      message:
+        error.response?.data?.message || "Error al eliminar la instancia.",
+    });
+  }
+});
+
 // Ruta para cerrar la sesión de una instancia
 app.delete("/api/logout-instance/:instanceName", async (req, res) => {
   const { instanceName } = req.params;
