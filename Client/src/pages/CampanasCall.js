@@ -489,15 +489,25 @@ function Campanas() {
                     </div>
                   </div>
                   <div className="box-data-card">
-                    <FaFlagCheckered />
-                    <div className="card-data">
-                      <span className="fecha">
-                        {new Date(item.fecha_envio_fin).toLocaleDateString()}
-                      </span>
-                      <span className="hora">
-                        {new Date(item.fecha_envio_fin).toLocaleTimeString()}
-                      </span>
-                    </div>
+                    {item.fecha_envio_fin != null ? (
+                      <>
+                        <FaFlagCheckered className="icon" />{" "}
+                        <div className="card-data">
+                          <span className="fecha">
+                            {new Date(
+                              item.fecha_envio_fin
+                            ).toLocaleDateString()}
+                          </span>
+                          <span className="hora">
+                            {new Date(
+                              item.fecha_envio_fin
+                            ).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      ""
+                    )}
                   </div>
                 </div>
                 <div className="card-body">
