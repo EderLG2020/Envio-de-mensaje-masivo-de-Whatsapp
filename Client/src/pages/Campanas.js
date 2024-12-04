@@ -535,12 +535,12 @@ function Campanas() {
                   id="campaignText"
                   value={campaignText}
                   onChange={handleTextChange}
-                  maxLength={255}
+                  maxLength={500}
                   placeholder="Escribe el contenido de tu campaña"
                   className="textarea-field"
                 />
                 <p className="char-counter">
-                  {campaignText.length}/255 caracteres
+                  {campaignText.length}/500 caracteres
                 </p>
               </div>
 
