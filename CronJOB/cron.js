@@ -3,6 +3,9 @@ const fs = require('fs');
 const logFilePath = './envio.log'; // Archivo para registrar mensajes
 let inProgressMessages = new Set(); // Almacenar mensajes en proceso
 let instances = []; // Lista de instancias activas
+let InstancesDisponibles = new Set();
+const ActiveFalseSet = new Set();
+let ErrorEnvio=false
 
 // Función para obtener el tiempo actual formateado
 function getCurrentTime() {
@@ -44,11 +47,11 @@ function simulateOccasionalBreak() {
 }
 
 // Simular tiempo de escritura basado en la longitud del mensaje y comportamiento humano
-function simulateTypingTime(message) {
-    const words = message.split(' ').length;
-    const readingTime = getRandomTime(2000, 4000); // Tiempo de "lectura"
-    const writingTime = getRandomTime(3000, 6000) + words * getRandomTime(80, 200); // Tiempo de escritura
-    return readingTime + writingTime;
+function simulateTypingTime() {
+    const minDelay = 10000;  
+    const maxDelay = 20000; 
+
+    return Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
 }
 
 // Función para obtener las instancias activas
@@ -70,6 +73,15 @@ async function getActiveInstances() {
             token: instance.token,
             messagesSentCount: 0 // Añadimos el contador de mensajes por instancia
         }));
+        instances.forEach(inst => {
+            if (InstancesDisponibles.size < instances.length) { // Verificar el límite
+                if (!InstancesDisponibles.has(inst)) {
+                    // Clonar el objeto y agregar la propiedad Active: false
+                    const instanceWithActive = { ...inst, Active: false };
+                    InstancesDisponibles.add(instanceWithActive);
+                }
+            }
+        });
     } catch (error) {
         console.error(`[${getCurrentTime()}] ⚠️ Error al obtener instancias: ${error.message}`);
         instances = []; // En caso de error, vaciar la lista de instancias
@@ -99,11 +111,7 @@ async function getNextQueueMessage() {
 
 // Enviar mensajes
 async function sendMessage(instance, messageData) {
-    try {
-        const typingDelay = simulateTypingTime(messageData.mensaje);
-        console.log(`[${getCurrentTime()}] ⌨️ Simulando tiempo de escritura por ${(typingDelay / 1000).toFixed(2)} segundos...`);
-        await new Promise(resolve => setTimeout(resolve, typingDelay));
-
+    try {     
         console.log(`[${getCurrentTime()}] 📤 Enviando mensaje desde la instancia: ${instance.name} a número: ${messageData.tenvio}`);
         const response = await axios.post(`https://apievo.3w.pe/message/sendText/${instance.name}`, {
             number: messageData.tenvio,
@@ -115,6 +123,7 @@ async function sendMessage(instance, messageData) {
         });
 
         if (response.status === 201) {
+            
             console.log(`[${getCurrentTime()}] ✅ Mensaje enviado correctamente desde ${instance.name}`);
             writeToLog('Enviado correctamente', messageData.tenvio, messageData.idSendmessage, instance.name);
         } else {
@@ -131,9 +140,9 @@ async function sendMessage(instance, messageData) {
             await confirmMessageSend(400, messageData.idSendmessage, instance.name);
         }
 
-        const errorPause = getExtendedRandomTime();
+       /*  const errorPause = getExtendedRandomTime();
         console.log(`[${getCurrentTime()}] ⏳ Pausando después de error por ${(errorPause / 1000).toFixed(2)} segundos para evitar detección.`);
-        await new Promise(resolve => setTimeout(resolve, errorPause));
+        await new Promise(resolve => setTimeout(resolve, errorPause)); */
     } finally {
         inProgressMessages.delete(messageData.idSendmessage); // Eliminar el mensaje de la lista de "en proceso"
     }
@@ -156,40 +165,57 @@ async function confirmMessageSend(statusCode, idSendmessage, instanceName) {
 
 // Función principal para gestionar el envío de mensajes de forma concurrente
 async function manageMessageSending() {
-    await getActiveInstances(); // Consultar las instancias activas inicialmente
-    console.log(`[${getCurrentTime()}] 🟢 Iniciando la gestión de envío de mensajes...`);
-
-    // Controlar envíos concurrentes por instancia
-    setInterval(async () => {
-        try {
-            await getActiveInstances(); // Consultar las instancias activas antes de cada ciclo
-            if (instances.length === 0) {
-                console.log(`[${getCurrentTime()}] ⚠️ No hay instancias disponibles.`);
-                return;
-            }
-
-            for (const instance of instances) {
-                if (instance.messagesSentCount >= 7) {
-                    const longBreak = simulateOccasionalBreak();
-                    if (longBreak > 0) {
-                        console.log(`[${getCurrentTime()}] 🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
+    while (true) {
+        const messageData = await getNextQueueMessage();
+        if (messageData) {
+            while (true) {
+                await getActiveInstances(); // Consultar las instancias activas inicialmente
+                console.log(`[${getCurrentTime()}] 🟢 Iniciando la gestión de envío de mensajes...`);
+                try {
+                    await getActiveInstances(); // Consultar las instancias activas antes de cada ciclo
+                    if (instances.length === 0) {
+                        console.log(`[${getCurrentTime()}] ⚠️ No hay instancias disponibles.`);
+                        return;
                     }
-                    instance.messagesSentCount = 0;
-                    await new Promise(resolve => setTimeout(resolve, longBreak));
-                    continue;
-                }
-
-                const messageData = await getNextQueueMessage();
-                if (messageData) {
-                    inProgressMessages.add(messageData.idSendmessage); // Añadir a "en proceso"
-                    await sendMessage(instance, messageData);
-                    instance.messagesSentCount++;
+                    [...InstancesDisponibles].forEach(async (Desactive) => {
+                        const typingDelay = simulateTypingTime();
+                        if (ActiveFalseSet.size < [...InstancesDisponibles].length) {
+                            if (Desactive.Active) {
+                                setInterval(() => {
+                                    Desactive.Active = false
+                                }, typingDelay)
+                            }
+                        }
+                    })
+                    for (const instance of [...InstancesDisponibles]) {
+                        if (!instance.Active) {
+                            if (instance.messagesSentCount >= 7) {
+                                const longBreak = simulateOccasionalBreak();
+                                if (longBreak > 0) {
+                                    console.log(`[${getCurrentTime()}] 🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
+                                }
+                                instance.messagesSentCount = 0;
+                                await new Promise(resolve => setTimeout(resolve, longBreak));
+                                continue;
+                            }
+                            const messageData = await getNextQueueMessage();
+                            if (messageData) {
+                                instance.Active = true
+                                inProgressMessages.add(messageData.idSendmessage); // Añadir a "en proceso"
+                                await sendMessage(instance, messageData);
+                                instance.messagesSentCount++;
+                            }
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                } catch (error) {
+                    console.error(`[${getCurrentTime()}] ⚠️ Error durante la gestión de envío de mensajes: ${error.message}`);
                 }
             }
-        } catch (error) {
-            console.error(`[${getCurrentTime()}] ⚠️ Error durante la gestión de envío de mensajes: ${error.message}`);
+            // Controlar envíos concurrentes por instancia
         }
-    }, 3000); // Verificar cada 3 segundos
+        await new Promise(resolve => setTimeout(resolve, 3000));
+    }
 }
 
 // Iniciar el proceso de envío
