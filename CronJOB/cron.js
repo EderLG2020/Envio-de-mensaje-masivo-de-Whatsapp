@@ -3,9 +3,6 @@ const fs = require('fs');
 const logFilePath = './envio.log'; // Archivo para registrar mensajes
 let inProgressMessages = new Set(); // Almacenar mensajes en proceso
 let instances = []; // Lista de instancias activas
-let InstancesDisponibles = new Set();
-const ActiveFalseSet = new Set();
-let ErrorEnvio=false
 
 // Función para obtener el tiempo actual formateado
 function getCurrentTime() {
@@ -20,40 +17,6 @@ function writeToLog(status, number, messageId, instanceName) {
         if (err) console.error('Error al escribir en el archivo de log:', err.message);
     });
 }
-
-// Función para generar un tiempo aleatorio para simular pausas humanas
-function getRandomTime(min = 5000, max = 30000) {
-    return Math.floor(Math.random() * (max - min + 1) + min);
-}
-
-// Función para simular pausas extendidas
-function getExtendedRandomTime() {
-    const randomChance = Math.random();
-    if (randomChance < 0.25) { // 25% de probabilidad de una pausa extendida
-        return getRandomTime(60000, 180000); // Pausa de 1 a 3 minutos
-    }
-    return getRandomTime(20000, 60000); // Pausa normal de 20 segundos a 1 minuto
-}
-
-// Función para simular pausas ocasionales prolongadas
-function simulateOccasionalBreak() {
-    const chance = Math.random();
-    if (chance < 0.10) { // 10% de probabilidad de una pausa más prolongada
-        const longBreak = getRandomTime(120000, 300000); // Pausa de 2 a 5 minutos
-        console.log(`[${getCurrentTime()}] 🛑 Tomando una pausa de ${(longBreak / 1000 / 60).toFixed(2)} minutos para evitar detección.`);
-        return longBreak;
-    }
-    return 0;
-}
-
-// Simular tiempo de escritura basado en la longitud del mensaje y comportamiento humano
-function simulateTypingTime() {
-    const minDelay = 10000;  
-    const maxDelay = 20000; 
-
-    return Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-}
-
 // Función para obtener las instancias activas
 async function getActiveInstances() {
     try {
@@ -71,17 +34,9 @@ async function getActiveInstances() {
             name: instance.name,
             ownerJid: instance.ownerJid,
             token: instance.token,
-            messagesSentCount: 0 // Añadimos el contador de mensajes por instancia
+            messagesSentCount: 0,// Añadimos el contador de mensajes por instancia
+            Active: false
         }));
-        instances.forEach(inst => {
-            if (InstancesDisponibles.size < instances.length) { // Verificar el límite
-                if (!InstancesDisponibles.has(inst)) {
-                    // Clonar el objeto y agregar la propiedad Active: false
-                    const instanceWithActive = { ...inst, Active: false };
-                    InstancesDisponibles.add(instanceWithActive);
-                }
-            }
-        });
     } catch (error) {
         console.error(`[${getCurrentTime()}] ⚠️ Error al obtener instancias: ${error.message}`);
         instances = []; // En caso de error, vaciar la lista de instancias
@@ -111,7 +66,7 @@ async function getNextQueueMessage() {
 
 // Enviar mensajes
 async function sendMessage(instance, messageData) {
-    try {     
+    try {
         console.log(`[${getCurrentTime()}] 📤 Enviando mensaje desde la instancia: ${instance.name} a número: ${messageData.tenvio}`);
         const response = await axios.post(`https://apievo.3w.pe/message/sendText/${instance.name}`, {
             number: messageData.tenvio,
@@ -123,7 +78,7 @@ async function sendMessage(instance, messageData) {
         });
 
         if (response.status === 201) {
-            
+
             console.log(`[${getCurrentTime()}] ✅ Mensaje enviado correctamente desde ${instance.name}`);
             writeToLog('Enviado correctamente', messageData.tenvio, messageData.idSendmessage, instance.name);
         } else {
@@ -140,9 +95,6 @@ async function sendMessage(instance, messageData) {
             await confirmMessageSend(400, messageData.idSendmessage, instance.name);
         }
 
-       /*  const errorPause = getExtendedRandomTime();
-        console.log(`[${getCurrentTime()}] ⏳ Pausando después de error por ${(errorPause / 1000).toFixed(2)} segundos para evitar detección.`);
-        await new Promise(resolve => setTimeout(resolve, errorPause)); */
     } finally {
         inProgressMessages.delete(messageData.idSendmessage); // Eliminar el mensaje de la lista de "en proceso"
     }
@@ -163,60 +115,98 @@ async function confirmMessageSend(statusCode, idSendmessage, instanceName) {
     }
 }
 
-// Función principal para gestionar el envío de mensajes de forma concurrente
-async function manageMessageSending() {
+function getCurrentTime() {
+    return new Date().toLocaleTimeString();
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Devuelve un valor aleatorio entre min y max.
+function getRandomDelay(min, max) {
+    return Math.floor(Math.random() * (max - min) + min);
+}
+
+// Demora con variación aleatoria
+function getExponentialDelay(baseTime, variance) {
+    return baseTime + Math.floor(Math.random() * variance);
+}
+
+// Conjunto para almacenar identificadores de mensajes enviados
+const sentMessages = new Set();
+
+async function simulateInstance(instance) {
     while (true) {
         const messageData = await getNextQueueMessage();
         if (messageData) {
-            while (true) {
-                await getActiveInstances(); // Consultar las instancias activas inicialmente
-                console.log(`[${getCurrentTime()}] 🟢 Iniciando la gestión de envío de mensajes...`);
-                try {
-                    await getActiveInstances(); // Consultar las instancias activas antes de cada ciclo
-                    if (instances.length === 0) {
-                        console.log(`[${getCurrentTime()}] ⚠️ No hay instancias disponibles.`);
-                        return;
-                    }
-                    [...InstancesDisponibles].forEach(async (Desactive) => {
-                        const typingDelay = simulateTypingTime();
-                        if (ActiveFalseSet.size < [...InstancesDisponibles].length) {
-                            if (Desactive.Active) {
-                                setInterval(() => {
-                                    Desactive.Active = false
-                                }, typingDelay)
-                            }
+            if (!sentMessages.has(messageData.idSendmessage)) {
+                if (!instance.Active) {
+                    instance.Active = true;
+                    instance.messagesSentCount++;
+                    
+                    sentMessages.add(messageData.idSendmessage);  // Almacena el identificador
+
+                    await sendMessage(instance, messageData);
+
+                    let valorDemora;
+
+                    if (instance.messagesSentCount < 3) {
+                        valorDemora = getExponentialDelay(getRandomDelay(4000, 12000), 4000);
+                    } else if (instance.messagesSentCount >= 3 && instance.messagesSentCount < 10) {
+                        valorDemora = getExponentialDelay(getRandomDelay(10000, 20000), 7000);
+                    } else if (instance.messagesSentCount >= 10 && instance.messagesSentCount < 20) {
+                        valorDemora = getExponentialDelay(getRandomDelay(30000, 60000), 5000);
+                    } else {
+                        let baseDelay = getExponentialDelay(getRandomDelay(120000, 300000), 180000);
+
+                        const rand = Math.random();
+
+                        if (rand < 0.05) {
+                            console.log(`[${getCurrentTime()}] 🔄 Reiniciando el envío de mensajes`);
+                            await manageMessageSending();  // Vuelve a llamar la función principal
+                            break;  // Sale del bucle actual
+                        } else if (rand < 0.1) {
+                            const extra2Min = getRandomDelay(120000, 240000);
+                            valorDemora = baseDelay + extra2Min;
+                            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 2 y 4 minutos aplicado`);
+                        } else if (rand < 0.3) {
+                            const extra1Min = getRandomDelay(60000, 120000);
+                            valorDemora = baseDelay + extra1Min;
+                            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 1 y 2 minutos aplicado`);
+                        } else if (rand < 0.7) {
+                            const extra30Seg = getRandomDelay(30000, 60000);
+                            valorDemora = baseDelay + extra30Seg;
+                            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 30 y 60 segundos aplicado`);
+                        } else {
+                            const extra15Seg = getRandomDelay(15000, 30000);
+                            valorDemora = baseDelay + extra15Seg;
+                            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 15 y 30 segundos aplicado`);
                         }
-                    })
-                    for (const instance of [...InstancesDisponibles]) {
-                        if (!instance.Active) {
-                            if (instance.messagesSentCount >= 7) {
-                                const longBreak = simulateOccasionalBreak();
-                                if (longBreak > 0) {
-                                    console.log(`[${getCurrentTime()}] 🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
-                                }
-                                instance.messagesSentCount = 0;
-                                await new Promise(resolve => setTimeout(resolve, longBreak));
-                                continue;
-                            }
-                            const messageData = await getNextQueueMessage();
-                            if (messageData) {
-                                instance.Active = true
-                                inProgressMessages.add(messageData.idSendmessage); // Añadir a "en proceso"
-                                await sendMessage(instance, messageData);
-                                instance.messagesSentCount++;
-                            }
-                        }
-                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        
                     }
-                } catch (error) {
-                    console.error(`[${getCurrentTime()}] ⚠️ Error durante la gestión de envío de mensajes: ${error.message}`);
+
+                    await delay(valorDemora);
+
+                    instance.Active = false;
+                 
                 }
+            } else {
+                console.log(`[${getCurrentTime()}] Mensaje duplicado descartado: ${messageData.idSendmessage}`);
             }
-            // Controlar envíos concurrentes por instancia
+        } else{
+            await manageMessageSending();  // Vuelve a llamar la función principal
+            break;
         }
-        await new Promise(resolve => setTimeout(resolve, 3000));
     }
 }
 
+
+async function manageMessageSending() {
+    await getActiveInstances(); // Consultar las instancias activas inicialmente
+    instances.forEach(instance => {
+        simulateInstance(instance);
+    });
+}
 // Iniciar el proceso de envío
 manageMessageSending();
