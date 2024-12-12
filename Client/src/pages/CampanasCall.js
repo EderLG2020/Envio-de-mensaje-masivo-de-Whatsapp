@@ -674,23 +674,9 @@ function Campanas() {
                     Las siguientes filas no cumplen las condiciones (primera
                     vez):
                   </p>
-                  <ul>
+                  <ul className="ItemNumberError">
                     {invalidNumbers.map((item, index) => (
-                      <li key={index}>
-                        Número: {item.value} - Error: {item.error}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-              {invalidDuplicates.length > 0 && (
-                <>
-                  <p>Números duplicados inválidos:</p>
-                  <ul>
-                    {invalidDuplicates.map((item, index) => (
-                      <li key={index}>
-                        Número: {item.value} - Error: {item.error}
-                      </li>
+                      <li key={index}>Número: {item.value}</li>
                     ))}
                   </ul>
                 </>

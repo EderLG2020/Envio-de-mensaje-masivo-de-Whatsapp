@@ -18,7 +18,7 @@
 }
 
 .data-duration,
-.data-fecha  {
+.data-fecha {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -57,4 +57,9 @@
     background: radial-gradient(circle at 50% -50%, #27ae60 1%, var(--color-sidebar-card) 55%);
     border-color: #27ae60;
     /* Borde verde */
+}
+
+.ItemNumberError {
+    text-decoration: none;
+    list-style: none;
 }
