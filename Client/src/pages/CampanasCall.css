@@ -63,3 +63,15 @@
     text-decoration: none;
     list-style: none;
 }
+
+.custom-modal-body {
+    overflow-y: auto;
+}
+
+.custom-modal {
+    max-width: 600px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}

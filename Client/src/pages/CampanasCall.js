@@ -670,10 +670,7 @@ function Campanas() {
             <div className="custom-modal-body">
               {invalidNumbers.length > 0 && (
                 <>
-                  <p>
-                    Las siguientes filas no cumplen las condiciones (primera
-                    vez):
-                  </p>
+                  <p>Las siguientes filas no cumplen las condiciones :</p>
                   <ul className="ItemNumberError">
                     {invalidNumbers.map((item, index) => (
                       <li key={index}>Número: {item.value}</li>
@@ -681,18 +678,15 @@ function Campanas() {
                   </ul>
                 </>
               )}
+            </div>
 
-              <div className="custom-modal-actions">
-                <button
-                  onClick={handleContinueWithValid}
-                  className="guardar-btn"
-                >
-                  Continuar (omitir inválidos)
-                </button>
-                <button onClick={handleCancelInvalid} className="cancelar-btn">
-                  Cancelar
-                </button>
-              </div>
+            <div className="custom-modal-actions">
+              <button onClick={handleContinueWithValid} className="guardar-btn">
+                Continuar (omitir inválidos)
+              </button>
+              <button onClick={handleCancelInvalid} className="cancelar-btn">
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
