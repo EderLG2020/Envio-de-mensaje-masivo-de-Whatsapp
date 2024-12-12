@@ -139,13 +139,13 @@ const sentMessages = new Set();
 async function simulateInstance(instance) {
     while (true) {
         const messageData = await getNextQueueMessage();
+
         if (messageData) {
             if (!sentMessages.has(messageData.idSendmessage)) {
                 if (!instance.Active) {
                     instance.Active = true;
                     instance.messagesSentCount++;
-                    
-                    sentMessages.add(messageData.idSendmessage);  // Almacena el identificador
+                    sentMessages.add(messageData.idSendmessage); // Almacena el identificador
 
                     await sendMessage(instance, messageData);
 
@@ -162,11 +162,7 @@ async function simulateInstance(instance) {
 
                         const rand = Math.random();
 
-                        if (rand < 0.05) {
-                            console.log(`[${getCurrentTime()}] 🔄 Reiniciando el envío de mensajes`);
-                            await manageMessageSending();  // Vuelve a llamar la función principal
-                            break;  // Sale del bucle actual
-                        } else if (rand < 0.1) {
+                        if (rand < 0.1) {
                             const extra2Min = getRandomDelay(120000, 240000);
                             valorDemora = baseDelay + extra2Min;
                             console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 2 y 4 minutos aplicado`);
@@ -183,19 +179,17 @@ async function simulateInstance(instance) {
                             valorDemora = baseDelay + extra15Seg;
                             console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 15 y 30 segundos aplicado`);
                         }
-                        
                     }
 
                     await delay(valorDemora);
 
                     instance.Active = false;
-                 
                 }
             } else {
                 console.log(`[${getCurrentTime()}] Mensaje duplicado descartado: ${messageData.idSendmessage}`);
             }
-        } else{
-            await manageMessageSending();  // Vuelve a llamar la función principal
+        } else {
+            await delay(3000); // Espera 3 segundos antes de volver a consultar
             break;
         }
     }
