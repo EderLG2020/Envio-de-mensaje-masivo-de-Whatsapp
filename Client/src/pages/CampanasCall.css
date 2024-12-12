@@ -18,7 +18,7 @@
 }
 
 .data-duration,
-.data-fecha  {
+.data-fecha {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -57,4 +57,21 @@
     background: radial-gradient(circle at 50% -50%, #27ae60 1%, var(--color-sidebar-card) 55%);
     border-color: #27ae60;
     /* Borde verde */
+}
+
+.ItemNumberError {
+    text-decoration: none;
+    list-style: none;
+}
+
+.custom-modal-body {
+    overflow-y: auto;
+}
+
+.custom-modal {
+    max-width: 600px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }

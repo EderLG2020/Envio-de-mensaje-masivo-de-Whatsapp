@@ -9,7 +9,6 @@ import {
 import Swal from "sweetalert2";
 import Spinner from "../components/Spinner";
 import { MdDelete } from "react-icons/md";
-
 import {
   FaCheckCircle,
   FaTimesCircle,
@@ -22,7 +21,6 @@ import {
   FaFlagCheckered,
 } from "react-icons/fa";
 
-// Función para subir una imagen (en este caso, un archivo de audio) a la API y devolver la URL
 async function uploadAudioToApi(file) {
   const formData = new FormData();
   formData.append("bucket", "dify");
@@ -50,13 +48,16 @@ function Campanas() {
   const [rowCount, setRowCount] = useState(0);
   const [selectedFile, setSelectedFile] = useState(null);
   const [telefonosNombres, setTelefonosNombres] = useState([]);
-  const [selectedAudio, setSelectedAudio] = useState(null); // Estado para el archivo de audio
+  const [selectedAudio, setSelectedAudio] = useState(null);
   const [summaryData, setSummaryData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   const inputRef = useRef(null);
 
-  // Función para obtener el resumen de campañas
+  const [invalidNumbers, setInvalidNumbers] = useState([]);
+  const [invalidDuplicates, setInvalidDuplicates] = useState([]);
+  const [showInvalidModal, setShowInvalidModal] = useState(false);
+
   const fetchSummaryData = async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
@@ -73,14 +74,9 @@ function Campanas() {
     }
   };
 
-  // Llamar al API de resumen cada 20 segundos sin mostrar loading
   useEffect(() => {
-    fetchSummaryData(); // Llamada inicial para cargar los datos con loading
-
-    // Ejecutar la función cada 20 segundos sin mostrar loading
+    fetchSummaryData();
     const intervalId = setInterval(() => fetchSummaryData(false), 5000);
-
-    // Limpiar el intervalo cuando el componente se desmonte
     return () => clearInterval(intervalId);
   }, []);
 
@@ -90,6 +86,8 @@ function Campanas() {
     setTelefonosNombres([]);
     setSelectedFile(null);
     setSelectedAudio(null);
+    setInvalidNumbers([]);
+    setInvalidDuplicates([]);
     setModalIsOpen(true);
   };
 
@@ -99,7 +97,10 @@ function Campanas() {
     setTelefonosNombres([]);
     setSelectedFile(null);
     setSelectedAudio(null);
+    setInvalidNumbers([]);
+    setInvalidDuplicates([]);
     setModalIsOpen(false);
+    setShowInvalidModal(false);
   };
 
   useEffect(() => {
@@ -112,35 +113,71 @@ function Campanas() {
     setCampaignName(e.target.value);
   };
 
-  // Controlador para manejar la carga del archivo Excel
+  // BLOQUE DE VALIDACIÓN EXCEL
   const handleExcelUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    setSelectedFile(file); // Guardar el archivo completo, no solo el nombre
+    setSelectedFile(file);
     setRowCount(0);
     setTelefonosNombres([]);
+    setInvalidNumbers([]);
+    setInvalidDuplicates([]);
 
     const reader = new FileReader();
     reader.onload = (event) => {
       const data = new Uint8Array(event.target.result);
       const workbook = XLSX.read(data, { type: "array" });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); // Obtener todas las filas como matriz
+      const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
-      // Filtrar solo las filas a partir de la fila 2 (es decir, omitir el encabezado)
-      const validRows = rows.slice(1).filter((row) => row[0]); // Saltar la primera fila y filtrar filas vacías
+      const allRows = rows.slice(1);
+      const nonEmptyRows = allRows.filter((row) => row && row.length > 0);
 
-      // Crear un array con el número de fila y el número de teléfono alternados
-      const telefonosNombresArray = [];
-      validRows.forEach((row) => {
-        // const filaNumero = index + 2; // Index + 2 para reflejar la fila real en el Excel
-        // telefonosNombresArray.push(String(filaNumero)); // Número de la fila como string
-        telefonosNombresArray.push(String(row[0])); // Teléfono como string
+      const validNumbers = [];
+      const invalids = [];
+      const duplicates = [];
+      const seenNumbers = new Set();
+      const seenInvalidNumbers = new Set();
+
+      nonEmptyRows.forEach((row) => {
+        if (row.length !== 1) {
+          const invalidValue = row.join(",");
+          if (seenInvalidNumbers.has(invalidValue)) {
+            duplicates.push({
+              value: invalidValue,
+              error: "Más de una columna (duplicado)",
+            });
+          } else {
+            invalids.push({ value: invalidValue, error: "Más de una columna" });
+            seenInvalidNumbers.add(invalidValue);
+          }
+          return;
+        }
+
+        const value = String(row[0]).trim();
+        const regex = /^9\d{8}$/;
+
+        if (!regex.test(value)) {
+          if (seenInvalidNumbers.has(value)) {
+            duplicates.push({ value, error: "Formato inválido (duplicado)" });
+          } else {
+            invalids.push({ value, error: "Formato inválido" });
+            seenInvalidNumbers.add(value);
+          }
+        } else {
+          // Es válido
+          if (!seenNumbers.has(value)) {
+            validNumbers.push(value);
+            seenNumbers.add(value);
+          }
+        }
       });
 
-      setRowCount(validRows.length);
-      setTelefonosNombres(telefonosNombresArray);
+      setRowCount(validNumbers.length);
+      setTelefonosNombres(validNumbers);
+      setInvalidNumbers(invalids);
+      setInvalidDuplicates(duplicates);
     };
     reader.readAsArrayBuffer(file);
   };
@@ -148,7 +185,6 @@ function Campanas() {
   const handleAudioUpload = (e) => {
     const file = e.target.files[0];
     if (file && file.type === "audio/wav") {
-      // Validar que sea un archivo WAV
       setSelectedAudio(file);
     } else {
       Swal.fire({
@@ -164,13 +200,18 @@ function Campanas() {
   };
 
   const validateFields = () => {
-    if (!campaignName || rowCount === 0) {
+    if (
+      !campaignName ||
+      (telefonosNombres.length === 0 &&
+        invalidNumbers.length === 0 &&
+        invalidDuplicates.length === 0)
+    ) {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Todos los campos deben estar completos y debes adjuntar un archivo válidos.",
+        text: "Todos los campos deben estar completos y debes adjuntar un archivo válido.",
         customClass: {
-          popup: "my-swal-popup", // Añade una clase personalizada al modal
+          popup: "my-swal-popup",
         },
         background: "#111111",
       });
@@ -185,19 +226,19 @@ function Campanas() {
     setLoading(true);
     if (!validateFields()) return;
 
-    // Cargar spinner mientras se va realizando la peticion, tomar spinner
+    if (invalidNumbers.length > 0 || invalidDuplicates.length > 0) {
+      setShowInvalidModal(true);
+      setLoading(false);
+      return;
+    }
 
+    await sendCampaign();
+  };
+
+  const sendCampaign = async (numbers = telefonosNombres) => {
     try {
-      // Subir el archivo de audio al bucket antes de registrar la campaña
       const audioUrl = await uploadAudioToApi(selectedAudio);
-
-      // Llamar a la API para registrar la campaña
-      await registerCamapaingCall(
-        campaignName,
-        // rowCount,
-        telefonosNombres,
-        audioUrl // Enviando el archivo de audio
-      );
+      await registerCamapaingCall(campaignName, numbers, audioUrl);
       closeModal();
       await fetchSummaryData(false);
       Swal.fire({
@@ -228,13 +269,9 @@ function Campanas() {
     }
   };
 
-  // Función que simula la eliminación desde un API
   const deleteCampaignFromAPI = async (itemId) => {
     try {
-      // Usamos la respuesta directamente de 'deleteCampaignApi'
       const response = await deleteCampaignApi(itemId);
-
-      // Devolvemos la respuesta de la API, que es un objeto con { success, message }
       return response;
     } catch (error) {
       console.error("Error al eliminar la campaña:", error);
@@ -265,7 +302,6 @@ function Campanas() {
 
         console.log("success: ", success, "message: ", message);
 
-        // Configuración del modal según el éxito
         const swalOptions = {
           1: {
             title: "¡Eliminado!",
@@ -288,7 +324,6 @@ function Campanas() {
           },
         };
 
-        // Mostrar el modal correspondiente
         await Swal.fire({
           ...(swalOptions[success] || {
             title: "Error desconocido",
@@ -303,7 +338,6 @@ function Campanas() {
           background: "#111111",
         });
 
-        // Log según el éxito
         if (success === 1) {
           console.log("Eliminado correctamente: ", item.id);
         } else if (success === 2) {
@@ -327,7 +361,7 @@ function Campanas() {
         console.error("Error al eliminar: ", error);
       }
     } else {
-      console.log("Eliminación cancelada.");
+      console.log("Eliminación cancelada.", item.id);
     }
   };
 
@@ -335,21 +369,29 @@ function Campanas() {
     Swal.fire({
       title: "Reproducción",
       html: `<audio controls autoplay style="width: 100%;">
-                      <source src="${audioUrl}" type="audio/mpeg">
-                      Tu navegador no soporta la reproducción de audio.
-                   </audio>`,
+                <source src="${audioUrl}" type="audio/mpeg">
+                Tu navegador no soporta la reproducción de audio.
+             </audio>`,
       showCloseButton: true,
       showConfirmButton: false,
       customClass: {
-        popup: "my-swal-popup", // Añade una clase personalizada al modal
+        popup: "my-swal-popup",
       },
       background: "#111111",
     });
   };
 
+  const handleContinueWithValid = async () => {
+    setShowInvalidModal(false);
+    await sendCampaign();
+  };
+
+  const handleCancelInvalid = () => {
+    setShowInvalidModal(false);
+  };
+
   return (
     <div className="dashboard-container">
-      {/* LEYENDA RESPOSIVO */}
       <div
         className="box-leyend-responsive"
         style={{ display: "none", gap: "10px" }}
@@ -467,14 +509,11 @@ function Campanas() {
                     <p>Reproducir audio</p>
                     <FaFileAudio className="status-icon" />
                   </div>
-                  {/* Contenido que se expande al hacer clic */}
                   <div
                     className={`content ${
                       expandedId === item.audio_url ? "show" : ""
                     }`}
-                  >
-                    {/* {item.mensaje} */}
-                  </div>
+                  ></div>
                 </div>
                 <div className="card-time">
                   <div className="box-data-card">
@@ -611,6 +650,43 @@ function Campanas() {
                   Cancelar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showInvalidModal && (
+        <div className="custom-modal-overlay">
+          <div className="custom-modal">
+            <div className="custom-modal-header">
+              <h2>Filas Inválidas</h2>
+              <button
+                className="close-btn"
+                onClick={() => setShowInvalidModal(false)}
+              >
+                <FaWindowClose />
+              </button>
+            </div>
+            <div className="custom-modal-body">
+              {invalidNumbers.length > 0 && (
+                <>
+                  <p>Las siguientes filas no cumplen las condiciones :</p>
+                  <ul className="ItemNumberError">
+                    {invalidNumbers.map((item, index) => (
+                      <li key={index}>Número: {item.value}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+
+            <div className="custom-modal-actions">
+              <button onClick={handleContinueWithValid} className="guardar-btn">
+                Continuar (omitir inválidos)
+              </button>
+              <button onClick={handleCancelInvalid} className="cancelar-btn">
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
