@@ -142,7 +142,7 @@ async function calculateDelay(instance) {
 
     // Generar un valor aleatorio para determinar si reiniciar todo (5% de probabilidad)
     const randReinicio = Math.random();
-    if (randReinicio < 0.55) {
+    if (randReinicio < 0.05) {
         console.log(`[${getCurrentTime()}] 🚨 Reiniciando todo el sistema por probabilidad del 5%.`);
         isRunning = false; // Detenemos el sistema global
         return null; // Indicamos al proceso principal que debe reiniciarse
