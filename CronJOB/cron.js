@@ -142,7 +142,7 @@ async function calculateDelay(instance) {
 
     // Generar un valor aleatorio para determinar si reiniciar todo (5% de probabilidad)
     const randReinicio = Math.random();
-    if (randReinicio < 0.05) {
+    if (randReinicio < 0.55) {
         console.log(`[${getCurrentTime()}] 🚨 Reiniciando todo el sistema por probabilidad del 5%.`);
         isRunning = false; // Detenemos el sistema global
         return null; // Indicamos al proceso principal que debe reiniciarse
@@ -212,39 +212,41 @@ async function simulateInstance(instance) {
         }
     }
 }
+
 async function manageMessageSending() {
-    await getActiveInstances();
+    while (true) {
+        await getActiveInstances();
 
-    // Reinicia el conteo de mensajes para cada instancia
-    instances.forEach(instance => {
-        instance.messagesSentCount = 0;
-    });
-
-    const instancePromises = instances.map(instance => simulateInstance(instance));
-
-    await Promise.all(instancePromises);
-
-    console.log('Todas las instancias se han detenido.');
-
-    // Reinicia el proceso después de esperar 3 segundos y verificar si hay mensajes
-    setTimeout(async () => {
-        console.log('Reiniciando proceso...');
-        isRunning = true;
-
-        // Reinicia el conteo de mensajes cuando el proceso se reinicia
+        // Reinicia el conteo de mensajes para cada instancia
         instances.forEach(instance => {
             instance.messagesSentCount = 0;
+
         });
 
-        const hasMessages = await getNextQueueMessage();  // Verifica si hay mensajes disponibles
+        while (isRunning) {
+            console.log('Reiniciando proceso...');
 
-        if (hasMessages) {
-            manageMessageSending();  // Reinicia todo el proceso si hay mensajes.
-        } else {
-            console.log('No hay mensajes disponibles.');
+            const hasMessages = await getNextQueueMessage(); // Verifica si hay mensajes disponibles
+
+            if (hasMessages) {
+                console.log('Procesando instancias...');
+                const instancePromises = instances.map(instance => simulateInstance(instance));
+                await Promise.all(instancePromises);
+
+                console.log('Todas las instancias se han detenido.');
+            } else {
+                console.log('No hay mensajes disponibles. Esperando antes de consultar nuevamente...');
+                await delay(3000); // Pausa de 3 segundos antes de verificar de nuevo
+            }
         }
-    }, 3000);
+         isRunning=true
+        await delay(3000);
+        console.log('El proceso de envío de mensajes se ha detenido.');
+       
+    }
+
 }
 
-// Inicia el proceso de envío de mensajes.
+
+// Inicia el proceso de envío de mensajes
 manageMessageSending();
