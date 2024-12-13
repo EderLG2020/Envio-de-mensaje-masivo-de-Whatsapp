@@ -135,9 +135,57 @@ function getExponentialDelay(baseTime, variance) {
 
 // Conjunto para almacenar identificadores de mensajes enviados
 const sentMessages = new Set();
+let isRunning = true;
+
+async function calculateDelay(instance) {
+    let valorDemora;
+
+    // Generar un valor aleatorio para determinar si reiniciar todo (5% de probabilidad)
+    const randReinicio = Math.random();
+    if (randReinicio < 0.05) {
+        console.log(`[${getCurrentTime()}] 🚨 Reiniciando todo el sistema por probabilidad del 5%.`);
+        isRunning = false; // Detenemos el sistema global
+        return null; // Indicamos al proceso principal que debe reiniciarse
+    }
+
+    // Retraso básico según la cantidad de mensajes enviados
+    if (instance.messagesSentCount < 3) {
+        valorDemora = getExponentialDelay(getRandomDelay(4000, 12000), 4000);
+    } else if (instance.messagesSentCount >= 3 && instance.messagesSentCount < 10) {
+        valorDemora = getExponentialDelay(getRandomDelay(10000, 20000), 7000);
+    } else if (instance.messagesSentCount >= 10 && instance.messagesSentCount < 20) {
+        valorDemora = getExponentialDelay(getRandomDelay(30000, 60000), 5000);
+    } else {
+        let baseDelay = getExponentialDelay(getRandomDelay(120000, 300000), 180000);
+
+        const rand = Math.random();
+
+        if (rand < 0.05) {
+            const extra2Min = getRandomDelay(120000, 240000);
+            valorDemora = baseDelay + extra2Min;
+            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 2 y 4 minutos aplicado`);
+        } else if (rand < 0.1) {
+            const extra1Min = getRandomDelay(60000, 120000);
+            valorDemora = baseDelay + extra1Min;
+            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 1 y 2 minutos aplicado`);
+        } else if (rand < 0.7) {
+            const extra30Seg = getRandomDelay(30000, 60000);
+            valorDemora = baseDelay + extra30Seg;
+            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 30 y 60 segundos aplicado`);
+        } else {
+            const extra15Seg = getRandomDelay(15000, 30000);
+            valorDemora = baseDelay + extra15Seg;
+            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 15 y 30 segundos aplicado`);
+        }
+    }
+
+    return valorDemora;
+}
+
+
 
 async function simulateInstance(instance) {
-    while (true) {
+    while (isRunning) {
         const messageData = await getNextQueueMessage();
 
         if (messageData) {
@@ -145,62 +193,58 @@ async function simulateInstance(instance) {
                 if (!instance.Active) {
                     instance.Active = true;
                     instance.messagesSentCount++;
-                    sentMessages.add(messageData.idSendmessage); // Almacena el identificador
+                    sentMessages.add(messageData.idSendmessage);
 
                     await sendMessage(instance, messageData);
 
-                    let valorDemora;
-
-                    if (instance.messagesSentCount < 3) {
-                        valorDemora = getExponentialDelay(getRandomDelay(4000, 12000), 4000);
-                    } else if (instance.messagesSentCount >= 3 && instance.messagesSentCount < 10) {
-                        valorDemora = getExponentialDelay(getRandomDelay(10000, 20000), 7000);
-                    } else if (instance.messagesSentCount >= 10 && instance.messagesSentCount < 20) {
-                        valorDemora = getExponentialDelay(getRandomDelay(30000, 60000), 5000);
-                    } else {
-                        let baseDelay = getExponentialDelay(getRandomDelay(120000, 300000), 180000);
-
-                        const rand = Math.random();
-
-                        if (rand < 0.1) {
-                            const extra2Min = getRandomDelay(120000, 240000);
-                            valorDemora = baseDelay + extra2Min;
-                            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 2 y 4 minutos aplicado`);
-                        } else if (rand < 0.3) {
-                            const extra1Min = getRandomDelay(60000, 120000);
-                            valorDemora = baseDelay + extra1Min;
-                            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 1 y 2 minutos aplicado`);
-                        } else if (rand < 0.7) {
-                            const extra30Seg = getRandomDelay(30000, 60000);
-                            valorDemora = baseDelay + extra30Seg;
-                            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 30 y 60 segundos aplicado`);
-                        } else {
-                            const extra15Seg = getRandomDelay(15000, 30000);
-                            valorDemora = baseDelay + extra15Seg;
-                            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 15 y 30 segundos aplicado`);
-                        }
-                    }
+                    let valorDemora = await calculateDelay(instance);
 
                     await delay(valorDemora);
 
                     instance.Active = false;
                 }
-            } else {
-                console.log(`[${getCurrentTime()}] Mensaje duplicado descartado: ${messageData.idSendmessage}`);
             }
         } else {
-            await delay(3000); // Espera 3 segundos antes de volver a consultar
-            break;
+            console.log(`[${getCurrentTime()}] No hay más mensajes para la instancia ${instance.id}. Deteniendo todo.`);
+            instance.messagesSentCount = 0;
+            isRunning = false;
+            return;
         }
     }
 }
-
-
 async function manageMessageSending() {
-    await getActiveInstances(); // Consultar las instancias activas inicialmente
+    await getActiveInstances();
+
+    // Reinicia el conteo de mensajes para cada instancia
     instances.forEach(instance => {
-        simulateInstance(instance);
+        instance.messagesSentCount = 0;
     });
+
+    const instancePromises = instances.map(instance => simulateInstance(instance));
+
+    await Promise.all(instancePromises);
+
+    console.log('Todas las instancias se han detenido.');
+
+    // Reinicia el proceso después de esperar 3 segundos y verificar si hay mensajes
+    setTimeout(async () => {
+        console.log('Reiniciando proceso...');
+        isRunning = true;
+
+        // Reinicia el conteo de mensajes cuando el proceso se reinicia
+        instances.forEach(instance => {
+            instance.messagesSentCount = 0;
+        });
+
+        const hasMessages = await getNextQueueMessage();  // Verifica si hay mensajes disponibles
+
+        if (hasMessages) {
+            manageMessageSending();  // Reinicia todo el proceso si hay mensajes.
+        } else {
+            console.log('No hay mensajes disponibles.');
+        }
+    }, 3000);
 }
-// Iniciar el proceso de envío
+
+// Inicia el proceso de envío de mensajes.
 manageMessageSending();
