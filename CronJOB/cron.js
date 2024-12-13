@@ -187,8 +187,8 @@ async function calculateDelay(instance) {
 async function simulateInstance(instance) {
     while (isRunning) {
         const messageData = await getNextQueueMessage();
-
-        if (messageData) {
+        const instances=await getActiveInstances();
+        if (messageData&&instances) {
             if (!sentMessages.has(messageData.idSendmessage)) {
                 if (!instance.Active) {
                     instance.Active = true;
@@ -241,12 +241,9 @@ async function manageMessageSending() {
         }
          isRunning=true
         await delay(3000);
-        console.log('El proceso de envío de mensajes se ha detenido.');
-       
+        console.log('El proceso de envío de mensajes se ha detenido.');  
     }
-
 }
-
 
 // Inicia el proceso de envío de mensajes
 manageMessageSending();
