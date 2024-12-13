@@ -142,21 +142,21 @@ async function calculateDelay(instance) {
 
     // Generar un valor aleatorio para determinar si reiniciar todo (5% de probabilidad)
     const randReinicio = Math.random();
-    if (randReinicio < 0.05) {
-        console.log(`[${getCurrentTime()}] 🚨 Reiniciando todo el sistema por probabilidad del 5%.`);
+    if (randReinicio < 0.005) {
+        console.log(`[${getCurrentTime()}] 🚨 Reiniciando todo el sistema por probabilidad del 1%.`);
         isRunning = false; // Detenemos el sistema global
         return null; // Indicamos al proceso principal que debe reiniciarse
     }
 
     // Retraso básico según la cantidad de mensajes enviados
-    if (instance.messagesSentCount < 3) {
-        valorDemora = getExponentialDelay(getRandomDelay(4000, 12000), 4000);
-    } else if (instance.messagesSentCount >= 3 && instance.messagesSentCount < 10) {
-        valorDemora = getExponentialDelay(getRandomDelay(10000, 20000), 7000);
+    if (instance.messagesSentCount < 1) {
+        valorDemora = getExponentialDelay(getRandomDelay(8000, 15000), 4000);
+    } else if (instance.messagesSentCount >= 1&& instance.messagesSentCount < 10) {
+        valorDemora = getExponentialDelay(getRandomDelay(15000, 60000), 7000);
     } else if (instance.messagesSentCount >= 10 && instance.messagesSentCount < 20) {
-        valorDemora = getExponentialDelay(getRandomDelay(30000, 60000), 5000);
+        valorDemora = getExponentialDelay(getRandomDelay(60000, 180000), 5000);
     } else {
-        let baseDelay = getExponentialDelay(getRandomDelay(120000, 300000), 180000);
+        let baseDelay = getExponentialDelay(getRandomDelay(180000, 300000), 180000);
 
         const rand = Math.random();
 
@@ -178,17 +178,26 @@ async function calculateDelay(instance) {
             console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 15 y 30 segundos aplicado`);
         }
     }
+    if (Math.random() < 0.1) {
+        const pausaLarga = getRandomDelay(2 * 60000, 6 * 60000);
+        console.log('Aplicando pausa larga entre 5 y 10 minutos.');
+        await delay(pausaLarga);
+    }
 
+    // Agregar un factor de aleatorización adicional
+    const randomFactor = Math.random() * getRandomDelay(5000, 10000);
+    valorDemora += randomFactor;
     return valorDemora;
 }
 
 
 
-async function simulateInstance(instance) {
+async function simulateInstance(instance,instanciasActivas) {
     while (isRunning) {
         const messageData = await getNextQueueMessage();
-        const instances=await getActiveInstances();
-        if (messageData&&instances) {
+        await getActiveInstances();
+       
+        if (messageData && instance &&instances.length==instanciasActivas ) {
             if (!sentMessages.has(messageData.idSendmessage)) {
                 if (!instance.Active) {
                     instance.Active = true;
@@ -212,7 +221,7 @@ async function simulateInstance(instance) {
         }
     }
 }
-
+let instanciasActivas=0
 async function manageMessageSending() {
     while (true) {
         await getActiveInstances();
@@ -220,9 +229,9 @@ async function manageMessageSending() {
         // Reinicia el conteo de mensajes para cada instancia
         instances.forEach(instance => {
             instance.messagesSentCount = 0;
-
+            
         });
-
+        instanciasActivas=instances.length
         while (isRunning) {
             console.log('Reiniciando proceso...');
 
@@ -230,20 +239,23 @@ async function manageMessageSending() {
 
             if (hasMessages) {
                 console.log('Procesando instancias...');
-                const instancePromises = instances.map(instance => simulateInstance(instance));
+                const instancePromises = instances.map(instance => simulateInstance(instance,instanciasActivas));
                 await Promise.all(instancePromises);
 
                 console.log('Todas las instancias se han detenido.');
             } else {
                 console.log('No hay mensajes disponibles. Esperando antes de consultar nuevamente...');
-                await delay(3000); // Pausa de 3 segundos antes de verificar de nuevo
+                await delay(10000); // Pausa de 3 segundos antes de verificar de nuevo
             }
         }
          isRunning=true
-        await delay(3000);
-        console.log('El proceso de envío de mensajes se ha detenido.');  
+        await delay(10000);
+        console.log('El proceso de envío de mensajes se ha detenido.');
+       
     }
+
 }
+
 
 // Inicia el proceso de envío de mensajes
 manageMessageSending();
