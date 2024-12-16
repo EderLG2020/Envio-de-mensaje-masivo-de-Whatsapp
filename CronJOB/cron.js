@@ -139,58 +139,78 @@ let isRunning = true;
 
 async function calculateDelay(instance) {
     let valorDemora;
-
+  
     // Generar un valor aleatorio para determinar si reiniciar todo (5% de probabilidad)
     const randReinicio = Math.random();
-    if (randReinicio < 0.005) {
-        console.log(`[${getCurrentTime()}] 🚨 Reiniciando todo el sistema por probabilidad del 1%.`);
+    if (randReinicio < 0.03) {
+      console.log(
+        `[${getCurrentTime()}] 🚨 Reiniciando todo el sistema por probabilidad del 3%.`
+      );
+      isRunning = false; // Detenemos el sistema global
+      return null; // Indicamos al proceso principal que debe reiniciarse
+    }
+  
+    // Retraso básico según la cantidad de mensajes enviados
+    if (instance.messagesSentCount < 2) {
+      valorDemora = getExponentialDelay(getRandomDelay(8000, 15000), 4000);
+    } else if (
+      instance.messagesSentCount >= 2 &&
+      instance.messagesSentCount < 10
+    ) {
+      valorDemora = getExponentialDelay(getRandomDelay(15000, 120000), 15000);
+    } else if (
+      instance.messagesSentCount >= 10 &&
+      instance.messagesSentCount < 20
+    ) {
+      valorDemora = getExponentialDelay(getRandomDelay(60000, 180000), 30000);
+    } else {
+      let baseDelay = getExponentialDelay(getRandomDelay(180000, 300000), 180000);
+  
+      const rand = Math.random();
+  
+      if (rand < 0.05) {
+        const extra2Min = getRandomDelay(120000, 240000);
+        valorDemora = baseDelay + extra2Min;
+        console.log(
+          `[${getCurrentTime()}] 📅 Retraso extra de entre 2 y 4 minutos aplicado`
+        );
+      } else if (rand < 0.1) {
+        const extra1Min = getRandomDelay(60000, 120000);
+        valorDemora = baseDelay + extra1Min;
+        console.log(
+          `[${getCurrentTime()}] 📅 Retraso extra de entre 1 y 2 minutos aplicado`
+        );
+      } else if (rand < 0.4) {
+        const extra30Seg = getRandomDelay(30000, 60000);
+        valorDemora = baseDelay + extra30Seg;
+        console.log(
+          `[${getCurrentTime()}] 📅 Retraso extra de entre 30 y 60 segundos aplicado`
+        );
+      } else if (rand < 0.5) {
+        console.log(
+          `[${getCurrentTime()}] 🚨 Reiniciando todo el sistema por probabilidad del 10%.`
+        );
         isRunning = false; // Detenemos el sistema global
         return null; // Indicamos al proceso principal que debe reiniciarse
-    }
-
-    // Retraso básico según la cantidad de mensajes enviados
-    if (instance.messagesSentCount < 1) {
-        valorDemora = getExponentialDelay(getRandomDelay(8000, 15000), 4000);
-    } else if (instance.messagesSentCount >= 1&& instance.messagesSentCount < 10) {
-        valorDemora = getExponentialDelay(getRandomDelay(15000, 60000), 7000);
-    } else if (instance.messagesSentCount >= 10 && instance.messagesSentCount < 20) {
-        valorDemora = getExponentialDelay(getRandomDelay(60000, 180000), 5000);
-    } else {
-        let baseDelay = getExponentialDelay(getRandomDelay(180000, 300000), 180000);
-
-        const rand = Math.random();
-
-        if (rand < 0.05) {
-            const extra2Min = getRandomDelay(120000, 240000);
-            valorDemora = baseDelay + extra2Min;
-            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 2 y 4 minutos aplicado`);
-        } else if (rand < 0.1) {
-            const extra1Min = getRandomDelay(60000, 120000);
-            valorDemora = baseDelay + extra1Min;
-            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 1 y 2 minutos aplicado`);
-        } else if (rand < 0.7) {
-            const extra30Seg = getRandomDelay(30000, 60000);
-            valorDemora = baseDelay + extra30Seg;
-            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 30 y 60 segundos aplicado`);
-        } else {
-            const extra15Seg = getRandomDelay(15000, 30000);
-            valorDemora = baseDelay + extra15Seg;
-            console.log(`[${getCurrentTime()}] 📅 Retraso extra de entre 15 y 30 segundos aplicado`);
-        }
+      } else {
+        const extra15Seg = getRandomDelay(15000, 30000);
+        valorDemora = baseDelay + extra15Seg;
+        console.log(
+          `[${getCurrentTime()}] 📅 Retraso extra de entre 15 y 30 segundos aplicado`
+        );
+      }
     }
     if (Math.random() < 0.1) {
-        const pausaLarga = getRandomDelay(2 * 60000, 6 * 60000);
-        console.log('Aplicando pausa larga entre 5 y 10 minutos.');
-        await delay(pausaLarga);
+      const pausaLarga = getRandomDelay(1 * 60000, 5 * 60000);
+      console.log("Aplicando pausa larga entre 2 y 4 minutos.");
+      await delay(pausaLarga);
     }
-
+  
     // Agregar un factor de aleatorización adicional
     const randomFactor = Math.random() * getRandomDelay(5000, 10000);
     valorDemora += randomFactor;
     return valorDemora;
-}
-
-
+  }
 
 async function simulateInstance(instance,instanciasActivas) {
     while (isRunning) {
