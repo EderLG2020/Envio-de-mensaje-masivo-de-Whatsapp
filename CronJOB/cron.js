@@ -3,6 +3,7 @@ const fs = require('fs');
 const logFilePath = './envio.log'; // Archivo para registrar mensajes
 let inProgressMessages = new Set(); // Almacenar mensajes en proceso
 let instances = []; // Lista de instancias activas
+let tamañoInstances = 0
 
 // Función para obtener el tiempo actual formateado
 function getCurrentTime() {
@@ -97,14 +98,16 @@ async function getNextQueueMessage() {
     }
 }
 
-// Enviar mensajes
+
 async function sendMessage(instance, messageData) {
     try {
+
         const typingDelay = simulateTypingTime(messageData.mensaje);
         console.log(`[${getCurrentTime()}] ⌨️ Simulando tiempo de escritura por ${(typingDelay / 1000).toFixed(2)} segundos...`);
         await new Promise(resolve => setTimeout(resolve, typingDelay));
 
-        console.log(`[${getCurrentTime()}] 📤 Enviando mensaje desde la instancia: ${instance.name} a número: ${messageData.tenvio}`);
+        console.log(`[${getCurrentTime()}] 📤 Enviando mensaje desde ${instance.name} a número: ${messageData.tenvio}`);
+
         const response = await axios.post(`https://apievo.3w.pe/message/sendText/${instance.name}`, {
             number: messageData.tenvio,
             text: messageData.mensaje
@@ -123,6 +126,7 @@ async function sendMessage(instance, messageData) {
         }
 
         await confirmMessageSend(response.status, messageData.idSendmessage, instance.name);
+
     } catch (error) {
         console.error(`[${getCurrentTime()}] ❌ Error al enviar mensaje desde ${instance.name}: ${error.message}`);
         writeToLog('Error en el envío', messageData.tenvio, messageData.idSendmessage, instance.name);
@@ -134,8 +138,10 @@ async function sendMessage(instance, messageData) {
         const errorPause = getExtendedRandomTime();
         console.log(`[${getCurrentTime()}] ⏳ Pausando después de error por ${(errorPause / 1000).toFixed(2)} segundos para evitar detección.`);
         await new Promise(resolve => setTimeout(resolve, errorPause));
+
     } finally {
-        inProgressMessages.delete(messageData.idSendmessage); // Eliminar el mensaje de la lista de "en proceso"
+        // Limpiar el mensaje del Set global para asegurar que otros intentos puedan seguir el flujo
+        inProgressMessages.delete(messageData.idSendmessage);
     }
 }
 
@@ -153,44 +159,47 @@ async function confirmMessageSend(statusCode, idSendmessage, instanceName) {
         console.error(`[${getCurrentTime()}] ⚠️ Error al confirmar el envío de ${instanceName}: ${error.message}`);
     }
 }
+async function manageInstanceSending(instance, tamañoInstances) {
+    while (instance) {
+        const messageData = await getNextQueueMessage();
+        await getActiveInstances();
 
-// Función principal para gestionar el envío de mensajes de forma concurrente
-async function manageMessageSending() {
-    await getActiveInstances(); // Consultar las instancias activas inicialmente
-    console.log(`[${getCurrentTime()}] 🟢 Iniciando la gestión de envío de mensajes...`);
+        if (messageData && tamañoInstances == instances.length) {
 
-    // Controlar envíos concurrentes por instancia
-    setInterval(async () => {
-        try {
-            await getActiveInstances(); // Consultar las instancias activas antes de cada ciclo
-            if (instances.length === 0) {
-                console.log(`[${getCurrentTime()}] ⚠️ No hay instancias disponibles.`);
-                return;
+
+        if (instance.messagesSentCount >= 7) {
+            const longBreak = simulateOccasionalBreak();
+            if (longBreak > 0) {
+                console.log(`[${getCurrentTime()}] 🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
             }
-
-            for (const instance of instances) {
-                if (instance.messagesSentCount >= 7) {
-                    const longBreak = simulateOccasionalBreak();
-                    if (longBreak > 0) {
-                        console.log(`[${getCurrentTime()}] 🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
-                    }
-                    instance.messagesSentCount = 0;
-                    await new Promise(resolve => setTimeout(resolve, longBreak));
-                    continue;
-                }
-
-                const messageData = await getNextQueueMessage();
-                if (messageData) {
-                    inProgressMessages.add(messageData.idSendmessage); // Añadir a "en proceso"
-                    await sendMessage(instance, messageData);
-                    instance.messagesSentCount++;
-                }
-            }
-        } catch (error) {
-            console.error(`[${getCurrentTime()}] ⚠️ Error durante la gestión de envío de mensajes: ${error.message}`);
+            instance.messagesSentCount = 0;
+            await new Promise(resolve => setTimeout(resolve, longBreak));
         }
-    }, 3000); // Verificar cada 3 segundos
+
+
+            inProgressMessages.add(messageData.idSendmessage);
+            await sendMessage(instance, messageData);
+            instance.messagesSentCount++;
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 3000));  // Pausa por 5 segundos
+        }
+        
+        if(tamañoInstances != instances.length){
+            break;
+        }
+    }
 }
 
-// Iniciar el proceso de envío
+// Función principal para gestionar todas las instancias
+async function manageMessageSending() {
+    while (true) {
+        console.log(`[${getCurrentTime()}] 🚀 Iniciando envío de mensajes en paralelo...`);
+        await getActiveInstances();
+        tamañoInstances = instances.length
+        await Promise.all(instances.map(instance => manageInstanceSending(instance, tamañoInstances)));
+        await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+}
+
+// Iniciar el envío de mensajes
 manageMessageSending();
