@@ -4,7 +4,7 @@ const logFilePath = './envio.log'; // Archivo para registrar mensajes
 let inProgressMessages = new Set(); // Almacenar mensajes en proceso
 let instances = []; // Lista de instancias activas
 let tamañoInstances = 0
-
+let whilemanageInstanceSending=true
 // Función para obtener el tiempo actual formateado
 function getCurrentTime() {
     return new Date().toLocaleTimeString();
@@ -89,19 +89,16 @@ async function getNextQueueMessage() {
         if (inProgressMessages.has(response.data.idSendmessage)) {
             return null; // Si ya está en progreso, ignorar
         }
-
-        console.log(`[${getCurrentTime()}] 📬 Nuevo mensaje en la cola de envío: ${response.data.idSendmessage}`);
         return response.data;
     } catch (error) {
         console.error(`[${getCurrentTime()}] ⚠️ Error al obtener la cola de envío: ${error.message}`);
+        whilemanageInstanceSending=false
         return null;
     }
 }
 
-
 async function sendMessage(instance, messageData) {
     try {
-
         const typingDelay = simulateTypingTime(messageData.mensaje);
         console.log(`[${getCurrentTime()}] ⌨️ Simulando tiempo de escritura por ${(typingDelay / 1000).toFixed(2)} segundos...`);
         await new Promise(resolve => setTimeout(resolve, typingDelay));
@@ -160,34 +157,42 @@ async function confirmMessageSend(statusCode, idSendmessage, instanceName) {
     }
 }
 async function manageInstanceSending(instance, tamañoInstances) {
-    while (instance) {
-        const messageData = await getNextQueueMessage();
-        await getActiveInstances();
-
-        if (messageData && tamañoInstances == instances.length) {
-
-
-        if (instance.messagesSentCount >= 7) {
-            const longBreak = simulateOccasionalBreak();
-            if (longBreak > 0) {
-                console.log(`[${getCurrentTime()}] 🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
+      while (whilemanageInstanceSending) {
+        const  message= await getNextQueueMessage();
+        if(message && instance){
+            const messageData=message.shift();
+          
+            await getActiveInstances();
+            if (messageData && inProgressMessages.has(messageData.idSendmessage)) {
+                console.log(`[${getCurrentTime()}] ⚠️ Mensaje duplicado detectado: ${messageData.idSendmessage}`);
+                continue; // Saltar al siguiente mensaje sin procesar este
+            } 
+            if (messageData && tamañoInstances == instances.length) {
+                if (instance.messagesSentCount >= 7) {
+                    const longBreak = simulateOccasionalBreak();
+                    if (longBreak > 0) {
+                        console.log(`[${getCurrentTime()}] 🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
+                    }
+                    instance.messagesSentCount = 0;
+                    await new Promise(resolve => setTimeout(resolve, longBreak));
+                }
+                inProgressMessages.add(messageData.idSendmessage);
+    
+                await sendMessage(instance, messageData);
+                instance.messagesSentCount++;
+            } else {
+                await new Promise(resolve => setTimeout(resolve, 3000));  // Pausa por 5 segundos
             }
-            instance.messagesSentCount = 0;
-            await new Promise(resolve => setTimeout(resolve, longBreak));
-        }
-
-
-            inProgressMessages.add(messageData.idSendmessage);
-            await sendMessage(instance, messageData);
-            instance.messagesSentCount++;
-        } else {
-            await new Promise(resolve => setTimeout(resolve, 3000));  // Pausa por 5 segundos
-        }
-        
-        if(tamañoInstances != instances.length){
-            break;
-        }
+    
+            if (tamañoInstances != instances.length) {
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }else{
+            whilemanageInstanceSending=false
+        } 
     }
+   
 }
 
 // Función principal para gestionar todas las instancias
@@ -197,6 +202,7 @@ async function manageMessageSending() {
         await getActiveInstances();
         tamañoInstances = instances.length
         await Promise.all(instances.map(instance => manageInstanceSending(instance, tamañoInstances)));
+        whilemanageInstanceSending=true
         await new Promise(resolve => setTimeout(resolve, 3000));
     }
 }
