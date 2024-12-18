@@ -1,48 +1,109 @@
 const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
+const winston = require('winston');
+const Joi = require('joi');
 
-const logFilePath = path.join(__dirname, 'envio.log');
-const inProgressMessages = new Set();
-let instances = [];
+// Configuración de Winston para logs
+const logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.printf(info => `[${info.timestamp}] ${info.level.toUpperCase()}: ${info.message}`)
+    ),
+    transports: [
+        new winston.transports.Console(),
+        new winston.transports.File({ filename: 'envio.log' })
+    ]
+});
 
+// Configuración centralizada
 const CONFIG = {
     MAX_MESSAGES_PER_INSTANCE: 7,
-    MESSAGE_INTERVAL_MIN: 20000,
-    MESSAGE_INTERVAL_MAX: 60000,
+    MESSAGE_INTERVAL_MIN: 20000, // 20 segundos
+    MESSAGE_INTERVAL_MAX: 60000, // 1 minuto
     EXTENDED_PAUSE_PROBABILITY: 0.25,
-    EXTENDED_PAUSE_MIN: 60000,
-    EXTENDED_PAUSE_MAX: 180000,
+    EXTENDED_PAUSE_MIN: 60000, // 1 minuto
+    EXTENDED_PAUSE_MAX: 180000, // 3 minutos
     OCCASIONAL_BREAK_PROBABILITY: 0.10,
-    OCCASIONAL_BREAK_MIN: 120000,
-    OCCASIONAL_BREAK_MAX: 300000,
-    RETRY_DELAY_MIN: 30000,
-    RETRY_DELAY_MAX: 120000,
+    OCCASIONAL_BREAK_MIN: 120000, // 2 minutos
+    OCCASIONAL_BREAK_MAX: 300000, // 5 minutos
+    RETRY_DELAY_MIN: 30000, // 30 segundos
+    RETRY_DELAY_MAX: 120000, // 2 minutos
     QUEUE_API_URL: 'http://188.245.38.255:5000/api/sendwhatsapp/colaenvio/?empresa=yego',
     CONFIRMATION_API_URL: 'http://188.245.38.255:5000/api/sendwhatsapp/envio',
     INSTANCES_API_URL: 'http://localhost:5000/api/instances',
     SEND_MESSAGE_API_BASE_URL: 'https://apievo.3w.pe/message/sendText/',
-    LOG_ENCODING: 'utf8'
+    LOG_ENCODING: 'utf8',
+    MAX_RETRIES: 3, // Número máximo de reintentos
+    POLLING_INTERVAL: 60000, // Intervalo para polling de instancias en ms
+    POLLING_MESSAGE_INTERVAL: 30000, // Intervalo para polling de mensajes en ms
+    SENT_MESSAGES_FILE: path.join(__dirname, 'sentMessages.json')
 };
 
+// Esquema de validación para la respuesta de la cola de envío
+const messageSchema = Joi.object({
+    idSendmessage: Joi.number().required(),
+    tenvio: Joi.string().required(),
+    mensaje: Joi.string().required(),
+    // Añade otras propiedades según sea necesario
+}).unknown(true); // Permite propiedades adicionales
+
+// Conjunto para rastrear mensajes en progreso
+const inProgressMessages = new Set();
+
+// Lista de instancias activas
+let instances = [];
+
+// Cola centralizada de mensajes
+let messageQueue = [];
+
+// Conjunto para rastrear mensajes ya enviados
+let sentMessages = new Set();
+
+// Flags para gestionar la ejecución de manageInstanceSending
+const instanceFlags = {};
+
+// Función para cargar mensajes enviados desde el archivo
+async function loadSentMessages() {
+    try {
+        const data = await fs.readFile(CONFIG.SENT_MESSAGES_FILE, CONFIG.LOG_ENCODING);
+        sentMessages = new Set(JSON.parse(data));
+        logger.info(`✅ Cargados ${sentMessages.size} mensajes previamente enviados.`);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            // Archivo no existe, crear uno nuevo
+            await fs.writeFile(CONFIG.SENT_MESSAGES_FILE, JSON.stringify([]), CONFIG.LOG_ENCODING);
+            sentMessages = new Set();
+            logger.info('✅ Archivo de mensajes enviados creado.');
+        } else {
+            logger.error(`⚠️ Error al cargar mensajes enviados: ${error.message}`);
+            sentMessages = new Set();
+        }
+    }
+}
+
+// Función para guardar mensajes enviados en el archivo
+async function saveSentMessages() {
+    try {
+        await fs.writeFile(CONFIG.SENT_MESSAGES_FILE, JSON.stringify([...sentMessages]), CONFIG.LOG_ENCODING);
+        logger.info(`✅ Guardados ${sentMessages.size} mensajes enviados en el archivo.`);
+    } catch (error) {
+        logger.error(`⚠️ Error al guardar mensajes enviados: ${error.message}`);
+    }
+}
+
+// Función para obtener el tiempo actual formateado
 function getCurrentTime() {
     return new Date().toLocaleTimeString();
 }
 
-async function writeToLog(status, number, messageId, instanceName) {
-    const currentTime = new Date().toLocaleString();
-    const logMessage = `[${currentTime}] Número: ${number} - ID Mensaje: ${messageId} - Estado: ${status} - Instancia: ${instanceName}\n`;
-    try {
-        await fs.appendFile(logFilePath, logMessage, CONFIG.LOG_ENCODING);
-    } catch (err) {
-        console.error(`[${getCurrentTime()}] Error al escribir en el archivo de log:`, err.message);
-    }
-}
-
+// Función para generar un tiempo aleatorio
 function getRandomTime(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+// Función para generar un tiempo aleatorio extendido
 function getExtendedRandomTime() {
     const randomChance = Math.random();
     if (randomChance < CONFIG.EXTENDED_PAUSE_PROBABILITY) {
@@ -51,70 +112,139 @@ function getExtendedRandomTime() {
     return getRandomTime(CONFIG.MESSAGE_INTERVAL_MIN, CONFIG.MESSAGE_INTERVAL_MAX);
 }
 
+// Función para simular pausas ocasionales prolongadas
 function simulateOccasionalBreak() {
     const chance = Math.random();
     if (chance < CONFIG.OCCASIONAL_BREAK_PROBABILITY) {
         const longBreak = getRandomTime(CONFIG.OCCASIONAL_BREAK_MIN, CONFIG.OCCASIONAL_BREAK_MAX);
-        console.log(`[${getCurrentTime()}] 🛑 Tomando una pausa de ${(longBreak / 1000 / 60).toFixed(2)} minutos para evitar detección.`);
+        logger.info(`🛑 Tomando una pausa de ${(longBreak / 1000 / 60).toFixed(2)} minutos para evitar detección.`);
         return longBreak;
     }
     return 0;
 }
 
+// Función para simular tiempo de escritura basado en la longitud del mensaje y comportamiento humano
 function simulateTypingTime(message) {
+    if (!message) return 0;
     const words = message.split(' ').length;
     const readingTime = getRandomTime(2000, 4000);
     const writingTime = getRandomTime(3000, 6000) + words * getRandomTime(80, 200);
     return readingTime + writingTime;
 }
 
+// Función para obtener las instancias activas
 async function getActiveInstances() {
     try {
-        console.log(`[${getCurrentTime()}] 🔍 Consultando instancias activas...`);
+        logger.info('🔍 Consultando instancias activas...');
         const response = await axios.get(CONFIG.INSTANCES_API_URL);
         const activeInstances = response.data.filter(instance => instance.connectionStatus === 'open');
+
         if (activeInstances.length > 0) {
-            console.log(`[${getCurrentTime()}] 🟢 Instancias activas encontradas: ${activeInstances.map(i => i.name).join(', ')}`);
+            logger.info(`🟢 Instancias activas encontradas: ${activeInstances.map(i => i.name).join(', ')}`);
         } else {
-            console.log(`[${getCurrentTime()}] ⚪ No se encontraron instancias activas.`);
+            logger.warn('⚪ No se encontraron instancias activas.');
         }
+
+        // Detectar instancias nuevas y desconectadas
+        const activeInstanceNames = activeInstances.map(instance => instance.name);
+        const previousInstanceNames = instances.map(instance => instance.name);
+
+        // Identificar nuevas instancias
+        const newInstances = activeInstances.filter(instance => !previousInstanceNames.includes(instance.name));
+        // Identificar instancias desconectadas
+        const disconnectedInstances = instances.filter(instance => !activeInstanceNames.includes(instance.name));
+
+        // Actualizar la lista de instancias activas
         instances = activeInstances.map(instance => ({
             name: instance.name,
             ownerJid: instance.ownerJid,
             token: instance.token,
-            messagesSentCount: 0,
-            isPaused: false
+            messagesSentCount: instance.messagesSentCount || 0,
+            isPaused: instance.isPaused || false
         }));
+
+        // Iniciar manageInstanceSending para nuevas instancias
+        for (const instance of newInstances) {
+            if (!instanceFlags[instance.name]) {
+                instanceFlags[instance.name] = { active: true };
+                manageInstanceSending(instance, instanceFlags[instance.name]).catch(error => {
+                    logger.error(`🔴 Error en manageInstanceSending para ${instance.name}: ${error.message}`);
+                });
+            }
+        }
+
+        // Detener manageInstanceSending para instancias desconectadas
+        for (const instance of disconnectedInstances) {
+            if (instanceFlags[instance.name]) {
+                instanceFlags[instance.name].active = false;
+                logger.info(`🛑 Deteniendo envío de mensajes para la instancia ${instance.name} por desconexión.`);
+            }
+        }
+
     } catch (error) {
-        console.error(`[${getCurrentTime()}] ⚠️ Error al obtener instancias: ${error.message}`);
+        logger.error(`⚠️ Error al obtener instancias: ${error.message}`);
         instances = [];
     }
 }
 
-async function getNextQueueMessage() {
+// Función para obtener la cola de mensajes
+async function fetchMessageQueue() {
     try {
         const response = await axios.get(CONFIG.QUEUE_API_URL);
-        if (response.data.message === "No hay registros en la cola de envío.") {
-            return null;
+        if (!Array.isArray(response.data) || response.data.length === 0) {
+            logger.info('📭 No hay mensajes en la cola.');
+            // Vaciar la cola local ya que la API no tiene mensajes
+            messageQueue = [];
+            return;
         }
-        if (inProgressMessages.has(response.data.idSendmessage)) {
-            return null;
+
+        // Filtrar mensajes que no están en progreso y que no han sido enviados previamente
+        const apiMessageIds = new Set();
+        const newMessages = [];
+
+        response.data.forEach(message => {
+            // Validar la estructura
+            const { error, value } = messageSchema.validate(message);
+            if (error) {
+                logger.error(`❌ Mensaje con estructura inválida detectado: ${error.message}. Datos: ${JSON.stringify(message)}`);
+                return;
+            }
+
+            apiMessageIds.add(message.idSendmessage);
+
+            // Si el mensaje ya ha sido enviado o está en progreso, no agregarlo
+            if (!inProgressMessages.has(message.idSendmessage) && !sentMessages.has(message.idSendmessage)) {
+                newMessages.push(message);
+            }
+        });
+
+        if (newMessages.length > 0) {
+            logger.info(`📬 Se agregaron ${newMessages.length} nuevos mensajes a la cola.`);
+            messageQueue.push(...newMessages);
+        } else {
+            logger.info('📭 No hay nuevos mensajes para agregar a la cola.');
         }
-        console.log(`[${getCurrentTime()}] 📬 Nuevo mensaje en la cola de envío: ${response.data.idSendmessage}`);
-        return response.data;
+
+        // Eliminar de messageQueue los mensajes que ya no están en la API
+        const beforeLength = messageQueue.length;
+        messageQueue = messageQueue.filter(message => apiMessageIds.has(message.idSendmessage));
+        const afterLength = messageQueue.length;
+        if (beforeLength !== afterLength) {
+            logger.info(`🗑️ Se eliminaron ${beforeLength - afterLength} mensajes obsoletos de la cola local.`);
+        }
     } catch (error) {
-        console.error(`[${getCurrentTime()}] ⚠️ Error al obtener la cola de envío: ${error.message}`);
-        return null;
+        logger.error(`⚠️ Error al obtener la cola de envío: ${error.message}`);
     }
 }
 
-async function sendMessage(instance, messageData) {
+// Función para enviar un mensaje con reintentos
+async function sendMessage(instance, messageData, attempt = 1) {
     try {
         const typingDelay = simulateTypingTime(messageData.mensaje);
-        console.log(`[${getCurrentTime()}] ⌨️ Simulando tiempo de escritura por ${(typingDelay / 1000).toFixed(2)} segundos...`);
+        logger.info(`⌨️ Simulando tiempo de escritura por ${(typingDelay / 1000).toFixed(2)} segundos...`);
         await new Promise(resolve => setTimeout(resolve, typingDelay));
 
-        console.log(`[${getCurrentTime()}] 📤 Enviando mensaje desde ${instance.name} a número: ${messageData.tenvio}`);
+        logger.info(`📤 Enviando mensaje desde ${instance.name} a número: ${messageData.tenvio}`);
 
         const response = await axios.post(`${CONFIG.SEND_MESSAGE_API_BASE_URL}${instance.name}`, {
             number: messageData.tenvio,
@@ -127,111 +257,158 @@ async function sendMessage(instance, messageData) {
         });
 
         if (response.status === 201) {
-            console.log(`[${getCurrentTime()}] ✅ Mensaje enviado correctamente desde ${instance.name}`);
+            logger.info(`✅ Mensaje enviado correctamente desde ${instance.name}`);
             await writeToLog('Enviado correctamente', messageData.tenvio, messageData.idSendmessage, instance.name);
+            sentMessages.add(messageData.idSendmessage);
+            await saveSentMessages();
         } else {
-            console.log(`[${getCurrentTime()}] ⚠️ Mensaje enviado con advertencia desde ${instance.name}, status: ${response.status}`);
+            logger.warn(`⚠️ Mensaje enviado con advertencia desde ${instance.name}, status: ${response.status}`);
             await writeToLog('Enviado con advertencia', messageData.tenvio, messageData.idSendmessage, instance.name);
         }
 
         await confirmMessageSend(response.status, messageData.idSendmessage, instance.name);
-
     } catch (error) {
-        console.error(`[${getCurrentTime()}] ❌ Error al enviar mensaje desde ${instance.name}: ${error.message}`);
+        logger.error(`❌ Error al enviar mensaje desde ${instance.name}: ${error.message}`);
         await writeToLog('Error en el envío', messageData.tenvio, messageData.idSendmessage, instance.name);
 
         if (error.response && error.response.status === 400) {
+            // No reintentar, confirmar como fallo permanente
             await confirmMessageSend(400, messageData.idSendmessage, instance.name);
+            logger.warn(`⚠️ Mensaje ID ${messageData.idSendmessage} falló con status 400. No se reintentará.`);
+            return; // Salir de la función sin reintentar
         }
 
-        const errorPause = getExtendedRandomTime();
-        console.log(`[${getCurrentTime()}] ⏳ Pausando después de error por ${(errorPause / 1000).toFixed(2)} segundos para evitar detección.`);
-        await new Promise(resolve => setTimeout(resolve, errorPause));
-
+        // Solo reintentar si no es un error 400
+        if (attempt < CONFIG.MAX_RETRIES) {
+            const retryDelay = getRandomTime(CONFIG.RETRY_DELAY_MIN, CONFIG.RETRY_DELAY_MAX);
+            logger.warn(`🔄 Reintentando enviar mensaje ID ${messageData.idSendmessage} en ${(retryDelay / 1000).toFixed(2)} segundos (Intento ${attempt}/${CONFIG.MAX_RETRIES})`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            return sendMessage(instance, messageData, attempt + 1);
+        } else {
+            logger.error(`❌ Falló al enviar mensaje ID ${messageData.idSendmessage} después de ${CONFIG.MAX_RETRIES} intentos.`);
+        }
     } finally {
         inProgressMessages.delete(messageData.idSendmessage);
     }
 }
 
+// Función para confirmar el envío del mensaje
 async function confirmMessageSend(statusCode, idSendmessage, instanceName) {
     const cenvio = statusCode === 201 ? 1 : 2;
     try {
-        await axios.post(CONFIG.CONFIRMATION_API_URL, {
+        const response = await axios.post(CONFIG.CONFIRMATION_API_URL, {
             Idenvio: idSendmessage,
             Ninstancia: instanceName,
             Cenvio: cenvio
         });
-        console.log(`[${getCurrentTime()}] ✅ Confirmación realizada para el idSendmessage: ${idSendmessage}`);
+        logger.info(`✅ Confirmación realizada para el idSendmessage: ${idSendmessage}. Respuesta: ${response.status}`);
     } catch (error) {
-        console.error(`[${getCurrentTime()}] ⚠️ Error al confirmar el envío de ${instanceName}: ${error.message}`);
+        logger.error(`⚠️ Error al confirmar el envío de ${instanceName}: ${error.message}. Datos enviados: Idenvio=${idSendmessage}, Ninstancia=${instanceName}, Cenvio=${cenvio}`);
     }
 }
 
-async function manageInstanceSending(instance) {
-    while (true) {
+// Función para escribir en el archivo de log utilizando Winston
+async function writeToLog(status, number, messageId, instanceName) {
+    const logMessage = `Número: ${number} - ID Mensaje: ${messageId} - Estado: ${status} - Instancia: ${instanceName}`;
+    if (status === 'Enviado correctamente') {
+        logger.info(logMessage);
+    } else if (status === 'Enviado con advertencia') {
+        logger.warn(logMessage);
+    } else if (status === 'Error en el envío') {
+        logger.error(logMessage);
+    }
+}
+
+// Función para gestionar el envío de mensajes a través de una instancia
+async function manageInstanceSending(instance, flag) {
+    while (flag.active) {
         if (instance.isPaused) {
             await new Promise(resolve => setTimeout(resolve, CONFIG.MESSAGE_INTERVAL_MIN));
             continue;
         }
 
-        const message = await getNextQueueMessage();
-        if (message) {
-            const messageData = message;
+        if (messageQueue.length === 0) {
+            logger.info('📭 No hay mensajes en la cola. Esperando 30 segundos antes de reintentar.');
+            await new Promise(resolve => setTimeout(resolve, CONFIG.POLLING_MESSAGE_INTERVAL));
+            continue;
+        }
 
-            if (inProgressMessages.has(messageData.idSendmessage)) {
-                console.log(`[${getCurrentTime()}] ⚠️ Mensaje duplicado detectado: ${messageData.idSendmessage}`);
-                continue;
-            }
+        const messageData = messageQueue.shift();
 
-            inProgressMessages.add(messageData.idSendmessage);
+        if (!messageData) {
+            logger.info('📭 No hay mensajes disponibles en la cola.');
+            await new Promise(resolve => setTimeout(resolve, CONFIG.POLLING_MESSAGE_INTERVAL));
+            continue;
+        }
 
-            await sendMessage(instance, messageData);
-            instance.messagesSentCount++;
+        if (inProgressMessages.has(messageData.idSendmessage)) {
+            logger.warn(`⚠️ Mensaje duplicado detectado: ${messageData.idSendmessage}`);
+            continue;
+        }
 
-            if (instance.messagesSentCount >= CONFIG.MAX_MESSAGES_PER_INSTANCE) {
-                const longBreak = simulateOccasionalBreak();
-                if (longBreak > 0) {
-                    console.log(`[${getCurrentTime()}] 🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
-                    instance.isPaused = true;
-                    instance.messagesSentCount = 0;
-                    await new Promise(resolve => setTimeout(resolve, longBreak));
-                    instance.isPaused = false;
-                } else {
-                    const pauseTime = getExtendedRandomTime();
-                    console.log(`[${getCurrentTime()}] ⏳ Pausando la instancia ${instance.name} por ${(pauseTime / 1000).toFixed(2)} segundos.`);
-                    instance.messagesSentCount = 0;
-                    await new Promise(resolve => setTimeout(resolve, pauseTime));
-                }
+        inProgressMessages.add(messageData.idSendmessage);
+
+        await sendMessage(instance, messageData);
+        instance.messagesSentCount++;
+
+        if (instance.messagesSentCount >= CONFIG.MAX_MESSAGES_PER_INSTANCE) {
+            const longBreak = simulateOccasionalBreak();
+            if (longBreak > 0) {
+                instance.isPaused = true;
+                instance.messagesSentCount = 0;
+                await new Promise(resolve => setTimeout(resolve, longBreak));
+                instance.isPaused = false;
             } else {
-                const waitTime = getExtendedRandomTime();
-                console.log(`[${getCurrentTime()}] ⏳ Esperando ${(waitTime / 1000).toFixed(2)} segundos antes de enviar el siguiente mensaje.`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
+                const pauseTime = getExtendedRandomTime();
+                logger.info(`⏳ Pausando la instancia ${instance.name} por ${(pauseTime / 1000).toFixed(2)} segundos.`);
+                instance.messagesSentCount = 0;
+                await new Promise(resolve => setTimeout(resolve, pauseTime));
             }
         } else {
-            console.log(`[${getCurrentTime()}] 📭 No hay mensajes en la cola. Esperando 30 segundos antes de reintentar.`);
-            await new Promise(resolve => setTimeout(resolve, 30000));
+            const waitTime = getExtendedRandomTime();
+            logger.info(`⏳ Esperando ${(waitTime / 1000).toFixed(2)} segundos antes de enviar el siguiente mensaje.`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
         }
     }
+
+    logger.info(`🛑 Se detiene manageInstanceSending para la instancia ${instance.name} por desconexión.`);
 }
 
+// Función principal para gestionar todas las instancias y la cola de mensajes
 async function manageMessageSending() {
     while (true) {
-        console.log(`[${getCurrentTime()}] 🚀 Iniciando envío de mensajes en paralelo...`);
+        logger.info('🚀 Iniciando gestión de envío de mensajes en paralelo...');
         await getActiveInstances();
+        await fetchMessageQueue();
 
         if (instances.length === 0) {
-            console.log(`[${getCurrentTime()}] ⚠️ No hay instancias activas. Esperando 60 segundos antes de reintentar.`);
+            logger.warn('⚠️ No hay instancias activas. Esperando 60 segundos antes de reintentar.');
             await new Promise(resolve => setTimeout(resolve, 60000));
             continue;
         }
 
-        const sendingPromises = instances.map(instance => manageInstanceSending(instance));
-        await Promise.all(sendingPromises);
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Esperar antes de volver a consultar las instancias y la cola
+        await new Promise(resolve => setTimeout(resolve, CONFIG.POLLING_INTERVAL));
     }
 }
 
-manageMessageSending().catch(error => {
-    console.error(`[${getCurrentTime()}] 🔴 Error crítico en manageMessageSending: ${error.message}`);
+// Manejo de excepciones globales
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error(`Unhandled Rejection at: ${promise}, reason: ${reason}`);
+});
+
+process.on('uncaughtException', (error) => {
+    logger.error(`Uncaught Exception: ${error.message}`);
     process.exit(1);
 });
+
+// Inicializar el sistema
+async function initialize() {
+    await loadSentMessages();
+    manageMessageSending().catch(error => {
+        logger.error(`🔴 Error crítico en manageMessageSending: ${error.message}`);
+        process.exit(1);
+    });
+}
+
+initialize();
