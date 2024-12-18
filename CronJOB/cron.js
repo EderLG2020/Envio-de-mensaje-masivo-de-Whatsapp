@@ -6,8 +6,8 @@ const inProgressMessages = new Set();
 let instances = [];
 
 const CONFIG = {
-    MAX_MESSAGES_PER_INSTANCE: 5,
-    MESSAGE_INTERVAL_MIN: 10000,
+    MAX_MESSAGES_PER_INSTANCE: 7,
+    MESSAGE_INTERVAL_MIN: 20000,
     MESSAGE_INTERVAL_MAX: 60000,
     EXTENDED_PAUSE_PROBABILITY: 0.25,
     EXTENDED_PAUSE_MIN: 60000,
@@ -22,16 +22,15 @@ const CONFIG = {
     INSTANCES_API_URL: 'http://localhost:5000/api/instances',
     SEND_MESSAGE_API_BASE_URL: 'https://apievo.3w.pe/message/sendText/',
     LOG_FILE: logFilePath,
-    LOG_ENCODING: 'utf8',
-    LOG_APPEND_MODE: 'a'
+    LOG_ENCODING: 'utf8'
 };
 
 function getCurrentTime() {
-    return new Date().toLocaleString();
+    return new Date().toLocaleTimeString();
 }
 
 async function writeToLog(status, number, messageId, instanceName) {
-    const currentTime = getCurrentTime();
+    const currentTime = new Date().toLocaleString();
     const logMessage = `[${currentTime}] Número: ${number} - ID Mensaje: ${messageId} - Estado: ${status} - Instancia: ${instanceName}\n`;
     try {
         await fs.appendFile(CONFIG.LOG_FILE, logMessage, CONFIG.LOG_ENCODING);
@@ -73,9 +72,7 @@ async function getActiveInstances() {
     try {
         console.log(`[${getCurrentTime()}] 🔍 Consultando instancias activas...`);
         const response = await axios.get(CONFIG.INSTANCES_API_URL);
-        const activeInstances = response.data.filter(instance =>
-            instance.connectionStatus === 'open' && instance.name.startsWith('MASIVO')
-        );
+        const activeInstances = response.data.filter(instance => instance.connectionStatus === 'open');
 
         if (activeInstances.length > 0) {
             console.log(`[${getCurrentTime()}] 🟢 Instancias activas encontradas: ${activeInstances.map(i => i.name).join(', ')}`);
@@ -234,9 +231,7 @@ async function manageMessageSending() {
         }
 
         const sendingPromises = instances.map(instance => manageInstanceSending(instance));
-
         await Promise.all(sendingPromises);
-
         await new Promise(resolve => setTimeout(resolve, 3000));
     }
 }
