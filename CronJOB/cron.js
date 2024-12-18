@@ -182,9 +182,11 @@ async function manageInstanceSending(instance, tamañoInstances) {
                 instance.messagesSentCount++;
             } else {
                 await new Promise(resolve => setTimeout(resolve, 3000));  // Pausa por 5 segundos
+                whilemanageInstanceSending=false
             }
     
             if (tamañoInstances != instances.length) {
+                whilemanageInstanceSending=false
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 3000));
