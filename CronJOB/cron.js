@@ -1,9 +1,8 @@
 const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
-
-// Biblioteca para manejo avanzado de logs
 const winston = require('winston');
+const Joi = require('joi');
 
 // Configuración de Winston para logs
 const logger = winston.createLogger({
@@ -36,8 +35,18 @@ const CONFIG = {
     INSTANCES_API_URL: 'http://localhost:5000/api/instances',
     SEND_MESSAGE_API_BASE_URL: 'https://apievo.3w.pe/message/sendText/',
     LOG_ENCODING: 'utf8',
-    MAX_RETRIES: 3 // Número máximo de reintentos
+    MAX_RETRIES: 3, // Número máximo de reintentos
+    POLLING_INTERVAL: 60000, // Intervalo para polling de instancias en ms
+    POLLING_MESSAGE_INTERVAL: 30000 // Intervalo para polling de mensajes en ms
 };
+
+// Esquema de validación para la respuesta de la cola de envío
+const messageSchema = Joi.object({
+    idSendmessage: Joi.number().required(),
+    tenvio: Joi.string().required(),
+    mensaje: Joi.string().required(),
+    // Añade otras propiedades según sea necesario
+}).unknown(true); // Permite propiedades adicionales
 
 // Conjunto para rastrear mensajes en progreso
 const inProgressMessages = new Set();
@@ -47,6 +56,9 @@ let instances = [];
 
 // Cola centralizada de mensajes
 let messageQueue = [];
+
+// Flags para gestionar la ejecución de manageInstanceSending
+const instanceFlags = {};
 
 // Función para obtener el tiempo actual formateado
 function getCurrentTime() {
@@ -100,13 +112,42 @@ async function getActiveInstances() {
             logger.warn('⚪ No se encontraron instancias activas.');
         }
 
+        // Detectar instancias nuevas y desconectadas
+        const activeInstanceNames = activeInstances.map(instance => instance.name);
+        const previousInstanceNames = instances.map(instance => instance.name);
+
+        // Identificar nuevas instancias
+        const newInstances = activeInstances.filter(instance => !previousInstanceNames.includes(instance.name));
+        // Identificar instancias desconectadas
+        const disconnectedInstances = instances.filter(instance => !activeInstanceNames.includes(instance.name));
+
+        // Actualizar la lista de instancias activas
         instances = activeInstances.map(instance => ({
             name: instance.name,
             ownerJid: instance.ownerJid,
             token: instance.token,
-            messagesSentCount: 0,
-            isPaused: false
+            messagesSentCount: instance.messagesSentCount || 0,
+            isPaused: instance.isPaused || false
         }));
+
+        // Iniciar manageInstanceSending para nuevas instancias
+        for (const instance of newInstances) {
+            if (!instanceFlags[instance.name]) {
+                instanceFlags[instance.name] = { active: true };
+                manageInstanceSending(instance, instanceFlags[instance.name]).catch(error => {
+                    logger.error(`🔴 Error en manageInstanceSending para ${instance.name}: ${error.message}`);
+                });
+            }
+        }
+
+        // Detener manageInstanceSending para instancias desconectadas
+        for (const instance of disconnectedInstances) {
+            if (instanceFlags[instance.name]) {
+                instanceFlags[instance.name].active = false;
+                logger.info(`🛑 Deteniendo envío de mensajes para la instancia ${instance.name} por desconexión.`);
+            }
+        }
+
     } catch (error) {
         logger.error(`⚠️ Error al obtener instancias: ${error.message}`);
         instances = [];
@@ -122,10 +163,15 @@ async function fetchMessageQueue() {
             return;
         }
 
-        // Filtrar mensajes que no están en progreso y tienen los campos necesarios
-        const newMessages = response.data.filter(message =>
-            message.idSendmessage && message.mensaje && message.tenvio && !inProgressMessages.has(message.idSendmessage)
-        );
+        // Filtrar mensajes que no están en progreso y que cumplen con el esquema esperado
+        const newMessages = response.data.filter(message => {
+            const { error, value } = messageSchema.validate(message);
+            if (error) {
+                logger.error(`❌ Mensaje con estructura inválida detectado: ${error.message}. Datos: ${JSON.stringify(message)}`);
+                return false;
+            }
+            return !inProgressMessages.has(message.idSendmessage);
+        });
 
         if (newMessages.length > 0) {
             logger.info(`📬 Se agregaron ${newMessages.length} nuevos mensajes a la cola.`);
@@ -215,8 +261,8 @@ async function writeToLog(status, number, messageId, instanceName) {
 }
 
 // Función para gestionar el envío de mensajes a través de una instancia
-async function manageInstanceSending(instance) {
-    while (true) {
+async function manageInstanceSending(instance, flag) {
+    while (flag.active) {
         if (instance.isPaused) {
             await new Promise(resolve => setTimeout(resolve, CONFIG.MESSAGE_INTERVAL_MIN));
             continue;
@@ -224,7 +270,7 @@ async function manageInstanceSending(instance) {
 
         if (messageQueue.length === 0) {
             logger.info('📭 No hay mensajes en la cola. Esperando 30 segundos antes de reintentar.');
-            await new Promise(resolve => setTimeout(resolve, 30000));
+            await new Promise(resolve => setTimeout(resolve, CONFIG.POLLING_MESSAGE_INTERVAL));
             continue;
         }
 
@@ -232,7 +278,7 @@ async function manageInstanceSending(instance) {
 
         if (!messageData) {
             logger.info('📭 No hay mensajes disponibles en la cola.');
-            await new Promise(resolve => setTimeout(resolve, 30000));
+            await new Promise(resolve => setTimeout(resolve, CONFIG.POLLING_MESSAGE_INTERVAL));
             continue;
         }
 
@@ -265,6 +311,8 @@ async function manageInstanceSending(instance) {
             await new Promise(resolve => setTimeout(resolve, waitTime));
         }
     }
+
+    logger.info(`🛑 Se detiene manageInstanceSending para la instancia ${instance.name} por desconexión.`);
 }
 
 // Función principal para gestionar todas las instancias y la cola de mensajes
@@ -280,13 +328,8 @@ async function manageMessageSending() {
             continue;
         }
 
-        // Iniciar el envío de mensajes para cada instancia activa
-        const sendingPromises = instances.map(instance => manageInstanceSending(instance));
-        await Promise.all(sendingPromises);
-
         // Esperar antes de volver a consultar las instancias y la cola
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        await fetchMessageQueue();
+        await new Promise(resolve => setTimeout(resolve, CONFIG.POLLING_INTERVAL));
     }
 }
 
@@ -295,3 +338,6 @@ manageMessageSending().catch(error => {
     logger.error(`🔴 Error crítico en manageMessageSending: ${error.message}`);
     process.exit(1);
 });
+
+// Manejadores para detectar cambios en la lista de instancias
+// Se podría implementar un mecanismo de eventos o usar una librería como EventEmitter
