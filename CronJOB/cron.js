@@ -62,6 +62,7 @@ function simulateOccasionalBreak() {
 }
 
 function simulateTypingTime(message) {
+    if (!message) return 0;
     const words = message.split(' ').length;
     const readingTime = getRandomTime(2000, 4000);
     const writingTime = getRandomTime(3000, 6000) + words * getRandomTime(80, 200);
@@ -73,11 +74,13 @@ async function getActiveInstances() {
         console.log(`[${getCurrentTime()}] 🔍 Consultando instancias activas...`);
         const response = await axios.get(CONFIG.INSTANCES_API_URL);
         const activeInstances = response.data.filter(instance => instance.connectionStatus === 'open');
+
         if (activeInstances.length > 0) {
             console.log(`[${getCurrentTime()}] 🟢 Instancias activas encontradas: ${activeInstances.map(i => i.name).join(', ')}`);
         } else {
             console.log(`[${getCurrentTime()}] ⚪ No se encontraron instancias activas.`);
         }
+
         instances = activeInstances.map(instance => ({
             name: instance.name,
             ownerJid: instance.ownerJid,
@@ -94,14 +97,19 @@ async function getActiveInstances() {
 async function getNextQueueMessage() {
     try {
         const response = await axios.get(CONFIG.QUEUE_API_URL);
-        if (response.data.message === "No hay registros en la cola de envío.") {
+
+        if (!Array.isArray(response.data) || response.data.length === 0) {
             return null;
         }
-        if (inProgressMessages.has(response.data.idSendmessage)) {
-            return null;
+
+        for (const message of response.data) {
+            if (message.idSendmessage && message.mensaje && message.tenvio && !inProgressMessages.has(message.idSendmessage)) {
+                console.log(`[${getCurrentTime()}] 📬 Nuevo mensaje en la cola de envío: ${message.idSendmessage}`);
+                return message;
+            }
         }
-        console.log(`[${getCurrentTime()}] 📬 Nuevo mensaje en la cola de envío: ${response.data.idSendmessage}`);
-        return response.data;
+
+        return null;
     } catch (error) {
         console.error(`[${getCurrentTime()}] ⚠️ Error al obtener la cola de envío: ${error.message}`);
         return null;
