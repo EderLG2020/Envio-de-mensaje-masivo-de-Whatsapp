@@ -4,17 +4,18 @@ const path = require('path');
 const winston = require('winston');
 const Joi = require('joi');
 
-// Configuración de Winston para logs
+// Configuración de Winston para logs con rotación diaria
 const logger = winston.createLogger({
-    level: 'info',
+    level: 'info', // Nivel mínimo de logeo
     format: winston.format.combine(
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.printf(info => `[${info.timestamp}] ${info.level.toUpperCase()}: ${info.message}`)
     ),
     transports: [
         new winston.transports.Console(),
-        new winston.transports.File({ filename: 'envio.log' })
-    ]
+        new winston.transports.File({ filename: 'envio.log' }) // Puedes cambiar esto a un archivo con rotación si lo deseas
+    ],
+    exitOnError: false, // No cerrar el proceso en caso de error
 });
 
 // Configuración centralizada
@@ -55,9 +56,6 @@ const inProgressMessages = new Set();
 // Lista de instancias activas
 let instances = [];
 
-// Cola centralizada de mensajes
-let messageQueue = [];
-
 // Conjunto para rastrear mensajes ya enviados
 let sentMessages = new Set();
 
@@ -68,7 +66,8 @@ const instanceFlags = {};
 async function loadSentMessages() {
     try {
         const data = await fs.readFile(CONFIG.SENT_MESSAGES_FILE, CONFIG.LOG_ENCODING);
-        sentMessages = new Set(JSON.parse(data));
+        const parsed = JSON.parse(data);
+        sentMessages = new Set(parsed);
         logger.info(`✅ Cargados ${sentMessages.size} mensajes previamente enviados.`);
     } catch (error) {
         if (error.code === 'ENOENT') {
@@ -96,6 +95,18 @@ async function saveSentMessages() {
 // Función para obtener el tiempo actual formateado
 function getCurrentTime() {
     return new Date().toLocaleTimeString();
+}
+
+// Función para escribir en el archivo de log de mensajes
+async function writeToLog(status, number, messageId, instanceName) {
+    const logMessage = `Número: ${number} - ID Mensaje: ${messageId} - Estado: ${status} - Instancia: ${instanceName}`;
+    if (status === 'Enviado correctamente') {
+        logger.info(logMessage);
+    } else if (status === 'Enviado con advertencia') {
+        logger.warn(logMessage);
+    } else if (status === 'Error en el envío') {
+        logger.error(logMessage);
+    }
 }
 
 // Función para generar un tiempo aleatorio
@@ -237,6 +248,20 @@ async function fetchMessageQueue() {
     }
 }
 
+// Función para obtener el próximo mensaje de la cola de envío
+async function getNextQueueMessage() {
+    try {
+        const newMessages = await fetchMessageQueue();
+        if (!newMessages || newMessages.length === 0) {
+            return [];
+        }
+        return newMessages;
+    } catch (error) {
+        logger.error(`⚠️ Error en getNextQueueMessage: ${error.message}`);
+        return [];
+    }
+}
+
 // Función para enviar un mensaje con reintentos
 async function sendMessage(instance, messageData, attempt = 1) {
     try {
@@ -245,6 +270,7 @@ async function sendMessage(instance, messageData, attempt = 1) {
         await new Promise(resolve => setTimeout(resolve, typingDelay));
 
         logger.info(`📤 Enviando mensaje desde ${instance.name} a número: ${messageData.tenvio}`);
+        logger.debug(`📤 Datos del mensaje a enviar: ${JSON.stringify(messageData)}`); // Log de depuración
 
         const response = await axios.post(`${CONFIG.SEND_MESSAGE_API_BASE_URL}${instance.name}`, {
             number: messageData.tenvio,
@@ -307,68 +333,56 @@ async function confirmMessageSend(statusCode, idSendmessage, instanceName) {
     }
 }
 
-// Función para escribir en el archivo de log utilizando Winston
-async function writeToLog(status, number, messageId, instanceName) {
-    const logMessage = `Número: ${number} - ID Mensaje: ${messageId} - Estado: ${status} - Instancia: ${instanceName}`;
-    if (status === 'Enviado correctamente') {
-        logger.info(logMessage);
-    } else if (status === 'Enviado con advertencia') {
-        logger.warn(logMessage);
-    } else if (status === 'Error en el envío') {
-        logger.error(logMessage);
-    }
-}
-
 // Función para gestionar el envío de mensajes a través de una instancia
 async function manageInstanceSending(instance, flag) {
     while (flag.active) {
-        if (instance.isPaused) {
-            await new Promise(resolve => setTimeout(resolve, CONFIG.MESSAGE_INTERVAL_MIN));
-            continue;
-        }
+        // Obtener los nuevos mensajes
+        const newMessages = await getNextQueueMessage();
 
-        if (messageQueue.length === 0) {
+        if (newMessages.length === 0) {
             logger.info('📭 No hay mensajes en la cola. Esperando 30 segundos antes de reintentar.');
             await new Promise(resolve => setTimeout(resolve, CONFIG.POLLING_MESSAGE_INTERVAL));
             continue;
         }
 
-        const messageData = messageQueue.shift();
-
-        if (!messageData) {
-            logger.info('📭 No hay mensajes disponibles en la cola.');
-            await new Promise(resolve => setTimeout(resolve, CONFIG.POLLING_MESSAGE_INTERVAL));
-            continue;
-        }
-
-        if (inProgressMessages.has(messageData.idSendmessage)) {
-            logger.warn(`⚠️ Mensaje duplicado detectado: ${messageData.idSendmessage}`);
-            continue;
-        }
-
-        inProgressMessages.add(messageData.idSendmessage);
-
-        await sendMessage(instance, messageData);
-        instance.messagesSentCount++;
-
-        if (instance.messagesSentCount >= CONFIG.MAX_MESSAGES_PER_INSTANCE) {
-            const longBreak = simulateOccasionalBreak();
-            if (longBreak > 0) {
-                instance.isPaused = true;
-                instance.messagesSentCount = 0;
-                await new Promise(resolve => setTimeout(resolve, longBreak));
-                instance.isPaused = false;
-            } else {
-                const pauseTime = getExtendedRandomTime();
-                logger.info(`⏳ Pausando la instancia ${instance.name} por ${(pauseTime / 1000).toFixed(2)} segundos.`);
-                instance.messagesSentCount = 0;
-                await new Promise(resolve => setTimeout(resolve, pauseTime));
+        for (const messageData of newMessages) {
+            if (!flag.active) {
+                break; // Salir si la instancia ya no está activa
             }
-        } else {
-            const waitTime = getExtendedRandomTime();
-            logger.info(`⏳ Esperando ${(waitTime / 1000).toFixed(2)} segundos antes de enviar el siguiente mensaje.`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
+
+            if (inProgressMessages.has(messageData.idSendmessage)) {
+                logger.warn(`⚠️ Mensaje duplicado detectado: ${messageData.idSendmessage}`);
+                continue; // Saltar al siguiente mensaje sin procesar este
+            }
+
+            if (sentMessages.has(messageData.idSendmessage)) {
+                logger.warn(`⚠️ Mensaje ya enviado previamente: ${messageData.idSendmessage}`);
+                continue; // Saltar al siguiente mensaje
+            }
+
+            if (instance.messagesSentCount >= CONFIG.MAX_MESSAGES_PER_INSTANCE) {
+                const longBreak = simulateOccasionalBreak();
+                if (longBreak > 0) {
+                    logger.info(`🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
+                    instance.messagesSentCount = 0;
+                    await new Promise(resolve => setTimeout(resolve, longBreak));
+                } else {
+                    const pauseTime = getExtendedRandomTime();
+                    logger.info(`⏳ Pausando la instancia ${instance.name} por ${(pauseTime / 1000).toFixed(2)} segundos.`);
+                    instance.messagesSentCount = 0;
+                    await new Promise(resolve => setTimeout(resolve, pauseTime));
+                }
+            }
+
+            inProgressMessages.add(messageData.idSendmessage);
+            await sendMessage(instance, messageData);
+            instance.messagesSentCount++;
         }
+
+        // Esperar antes de procesar los siguientes mensajes
+        const waitTime = getExtendedRandomTime();
+        logger.info(`⏳ Esperando ${(waitTime / 1000).toFixed(2)} segundos antes de procesar nuevos mensajes.`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
     }
 
     logger.info(`🛑 Se detiene manageInstanceSending para la instancia ${instance.name} por desconexión.`);
@@ -376,6 +390,8 @@ async function manageInstanceSending(instance, flag) {
 
 // Función principal para gestionar todas las instancias y la cola de mensajes
 async function manageMessageSending() {
+    await loadSentMessages(); // Cargar mensajes enviados al iniciar
+
     while (true) {
         logger.info('🚀 Iniciando gestión de envío de mensajes en paralelo...');
         await getActiveInstances();
@@ -383,7 +399,7 @@ async function manageMessageSending() {
 
         if (instances.length === 0) {
             logger.warn('⚠️ No hay instancias activas. Esperando 60 segundos antes de reintentar.');
-            await new Promise(resolve => setTimeout(resolve, 60000));
+            await new Promise(resolve => setTimeout(resolve, CONFIG.POLLING_INTERVAL));
             continue;
         }
 
