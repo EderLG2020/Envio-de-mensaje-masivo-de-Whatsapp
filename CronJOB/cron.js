@@ -62,6 +62,9 @@ let sentMessages = new Set();
 // Flags para gestionar la ejecución de manageInstanceSending
 const instanceFlags = {};
 
+// Cola centralizada de mensajes
+let messageQueue = [];
+
 // Función para cargar mensajes enviados desde el archivo
 async function loadSentMessages() {
     try {
@@ -202,47 +205,64 @@ async function getActiveInstances() {
 async function fetchMessageQueue() {
     try {
         const response = await axios.get(CONFIG.QUEUE_API_URL);
-        if (!Array.isArray(response.data) || response.data.length === 0) {
+        
+        // Verificar si la API indica que no hay mensajes
+        if (response.data.message && response.data.message === "No hay registros en la cola de envío.") {
             logger.info('📭 No hay mensajes en la cola.');
-            // Vaciar la cola local ya que la API no tiene mensajes
-            messageQueue = [];
+            messageQueue = []; // Vaciar la cola local
             return;
         }
 
-        // Filtrar mensajes que no están en progreso y que no han sido enviados previamente
-        const apiMessageIds = new Set();
-        const newMessages = [];
-
-        response.data.forEach(message => {
-            // Validar la estructura
-            const { error, value } = messageSchema.validate(message);
+        // Verificar si la respuesta es un array o un único objeto
+        if (!Array.isArray(response.data)) {
+            // Asumir que la API devuelve un único mensaje como objeto
+            const { error, value } = messageSchema.validate(response.data);
             if (error) {
-                logger.error(`❌ Mensaje con estructura inválida detectado: ${error.message}. Datos: ${JSON.stringify(message)}`);
+                logger.error(`❌ Mensaje con estructura inválida detectado: ${error.message}. Datos: ${JSON.stringify(response.data)}`);
                 return;
             }
 
-            apiMessageIds.add(message.idSendmessage);
-
-            // Si el mensaje ya ha sido enviado o está en progreso, no agregarlo
-            if (!inProgressMessages.has(message.idSendmessage) && !sentMessages.has(message.idSendmessage)) {
-                newMessages.push(message);
+            if (!inProgressMessages.has(value.idSendmessage) && !sentMessages.has(value.idSendmessage)) {
+                messageQueue.push(value);
+                logger.info(`📬 Se agregó un nuevo mensaje a la cola: ID ${value.idSendmessage}`);
             }
-        });
-
-        if (newMessages.length > 0) {
-            logger.info(`📬 Se agregaron ${newMessages.length} nuevos mensajes a la cola.`);
-            messageQueue.push(...newMessages);
         } else {
-            logger.info('📭 No hay nuevos mensajes para agregar a la cola.');
+            // La API devuelve un array de mensajes
+            const apiMessageIds = new Set();
+            const newMessages = [];
+
+            response.data.forEach(message => {
+                // Validar la estructura
+                const { error, value } = messageSchema.validate(message);
+                if (error) {
+                    logger.error(`❌ Mensaje con estructura inválida detectado: ${error.message}. Datos: ${JSON.stringify(message)}`);
+                    return;
+                }
+
+                apiMessageIds.add(message.idSendmessage);
+
+                // Si el mensaje ya ha sido enviado o está en progreso, no agregarlo
+                if (!inProgressMessages.has(message.idSendmessage) && !sentMessages.has(message.idSendmessage)) {
+                    newMessages.push(message);
+                }
+            });
+
+            if (newMessages.length > 0) {
+                logger.info(`📬 Se agregaron ${newMessages.length} nuevos mensajes a la cola.`);
+                messageQueue.push(...newMessages);
+            } else {
+                logger.info('📭 No hay nuevos mensajes para agregar a la cola.');
+            }
+
+            // Eliminar de messageQueue los mensajes que ya no están en la API
+            const beforeLength = messageQueue.length;
+            messageQueue = messageQueue.filter(message => apiMessageIds.has(message.idSendmessage));
+            const afterLength = messageQueue.length;
+            if (beforeLength !== afterLength) {
+                logger.info(`🗑️ Se eliminaron ${beforeLength - afterLength} mensajes obsoletos de la cola local.`);
+            }
         }
 
-        // Eliminar de messageQueue los mensajes que ya no están en la API
-        const beforeLength = messageQueue.length;
-        messageQueue = messageQueue.filter(message => apiMessageIds.has(message.idSendmessage));
-        const afterLength = messageQueue.length;
-        if (beforeLength !== afterLength) {
-            logger.info(`🗑️ Se eliminaron ${beforeLength - afterLength} mensajes obsoletos de la cola local.`);
-        }
     } catch (error) {
         logger.error(`⚠️ Error al obtener la cola de envío: ${error.message}`);
     }
@@ -251,14 +271,14 @@ async function fetchMessageQueue() {
 // Función para obtener el próximo mensaje de la cola de envío
 async function getNextQueueMessage() {
     try {
-        const newMessages = await fetchMessageQueue();
-        if (!newMessages || newMessages.length === 0) {
-            return [];
+        await fetchMessageQueue(); // Actualizar la cola de mensajes
+        if (messageQueue.length === 0) {
+            return null;
         }
-        return newMessages;
+        return messageQueue.shift(); // Retornar y eliminar el primer mensaje de la cola
     } catch (error) {
         logger.error(`⚠️ Error en getNextQueueMessage: ${error.message}`);
-        return [];
+        return null;
     }
 }
 
@@ -336,52 +356,53 @@ async function confirmMessageSend(statusCode, idSendmessage, instanceName) {
 // Función para gestionar el envío de mensajes a través de una instancia
 async function manageInstanceSending(instance, flag) {
     while (flag.active) {
-        // Obtener los nuevos mensajes
-        const newMessages = await getNextQueueMessage();
+        // Obtener el próximo mensaje
+        const messageData = await getNextQueueMessage();
 
-        if (newMessages.length === 0) {
+        if (!messageData) {
             logger.info('📭 No hay mensajes en la cola. Esperando 30 segundos antes de reintentar.');
             await new Promise(resolve => setTimeout(resolve, CONFIG.POLLING_MESSAGE_INTERVAL));
             continue;
         }
 
-        for (const messageData of newMessages) {
-            if (!flag.active) {
-                break; // Salir si la instancia ya no está activa
-            }
-
-            if (inProgressMessages.has(messageData.idSendmessage)) {
-                logger.warn(`⚠️ Mensaje duplicado detectado: ${messageData.idSendmessage}`);
-                continue; // Saltar al siguiente mensaje sin procesar este
-            }
-
-            if (sentMessages.has(messageData.idSendmessage)) {
-                logger.warn(`⚠️ Mensaje ya enviado previamente: ${messageData.idSendmessage}`);
-                continue; // Saltar al siguiente mensaje
-            }
-
-            if (instance.messagesSentCount >= CONFIG.MAX_MESSAGES_PER_INSTANCE) {
-                const longBreak = simulateOccasionalBreak();
-                if (longBreak > 0) {
-                    logger.info(`🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
-                    instance.messagesSentCount = 0;
-                    await new Promise(resolve => setTimeout(resolve, longBreak));
-                } else {
-                    const pauseTime = getExtendedRandomTime();
-                    logger.info(`⏳ Pausando la instancia ${instance.name} por ${(pauseTime / 1000).toFixed(2)} segundos.`);
-                    instance.messagesSentCount = 0;
-                    await new Promise(resolve => setTimeout(resolve, pauseTime));
-                }
-            }
-
-            inProgressMessages.add(messageData.idSendmessage);
-            await sendMessage(instance, messageData);
-            instance.messagesSentCount++;
+        // Verificar si el mensaje ya está en progreso o ya fue enviado
+        if (inProgressMessages.has(messageData.idSendmessage)) {
+            logger.warn(`⚠️ Mensaje duplicado detectado: ${messageData.idSendmessage}`);
+            continue; // Saltar al siguiente mensaje sin procesar este
         }
 
-        // Esperar antes de procesar los siguientes mensajes
+        if (sentMessages.has(messageData.idSendmessage)) {
+            logger.warn(`⚠️ Mensaje ya enviado previamente: ${messageData.idSendmessage}`);
+            continue; // Saltar al siguiente mensaje
+        }
+
+        // Verificar si la instancia ha alcanzado el máximo de mensajes permitidos
+        if (instance.messagesSentCount >= CONFIG.MAX_MESSAGES_PER_INSTANCE) {
+            const longBreak = simulateOccasionalBreak();
+            if (longBreak > 0) {
+                logger.info(`🛑 La instancia ${instance.name} tomará un descanso de ${(longBreak / 1000 / 60).toFixed(2)} minutos.`);
+                instance.messagesSentCount = 0;
+                await new Promise(resolve => setTimeout(resolve, longBreak));
+            } else {
+                const pauseTime = getExtendedRandomTime();
+                logger.info(`⏳ Pausando la instancia ${instance.name} por ${(pauseTime / 1000).toFixed(2)} segundos.`);
+                instance.messagesSentCount = 0;
+                await new Promise(resolve => setTimeout(resolve, pauseTime));
+            }
+        }
+
+        // Marcar el mensaje como en progreso
+        inProgressMessages.add(messageData.idSendmessage);
+
+        // Enviar el mensaje
+        await sendMessage(instance, messageData);
+
+        // Incrementar el contador de mensajes enviados
+        instance.messagesSentCount++;
+
+        // Esperar antes de procesar el siguiente mensaje
         const waitTime = getExtendedRandomTime();
-        logger.info(`⏳ Esperando ${(waitTime / 1000).toFixed(2)} segundos antes de procesar nuevos mensajes.`);
+        logger.info(`⏳ Esperando ${(waitTime / 1000).toFixed(2)} segundos antes de procesar el siguiente mensaje.`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
     }
 
