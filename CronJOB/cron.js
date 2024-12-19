@@ -31,7 +31,7 @@ const CONFIG = {
     OCCASIONAL_BREAK_MAX: 300000, // 5 minutos
     RETRY_DELAY_MIN: 30000, // 30 segundos
     RETRY_DELAY_MAX: 120000, // 2 minutos
-    QUEUE_API_URL: 'http://188.245.38.255:5000/api/sendwhatsapp/colaenvio/?empresa=yego',
+    QUEUE_API_URL: 'http://188.245.38.255:5000/api/sendwhatsapp/colaenvio/?empresa=yego', // Actualizar si es necesario
     CONFIRMATION_API_URL: 'http://188.245.38.255:5000/api/sendwhatsapp/envio',
     INSTANCES_API_URL: 'http://localhost:5000/api/instances',
     SEND_MESSAGE_API_BASE_URL: 'https://apievo.3w.pe/message/sendText/',
@@ -150,6 +150,7 @@ function simulateTypingTime(message) {
 async function getActiveInstances() {
     try {
         logger.info('🔍 Consultando instancias activas...');
+        logger.debug(`Consultando la cola de envío en: ${CONFIG.INSTANCES_API_URL}`);
         const response = await axios.get(CONFIG.INSTANCES_API_URL);
         const activeInstances = response.data.filter(instance => instance.connectionStatus === 'open');
 
@@ -204,8 +205,10 @@ async function getActiveInstances() {
 // Función para obtener la cola de mensajes
 async function fetchMessageQueue() {
     try {
+        logger.info('🔄 Actualizando la cola de mensajes...');
+        logger.debug(`Consultando la cola de envío en: ${CONFIG.QUEUE_API_URL}`);
         const response = await axios.get(CONFIG.QUEUE_API_URL);
-        
+
         // Verificar si la API indica que no hay mensajes
         if (response.data.message && response.data.message === "No hay registros en la cola de envío.") {
             logger.info('📭 No hay mensajes en la cola.');
@@ -264,7 +267,13 @@ async function fetchMessageQueue() {
         }
 
     } catch (error) {
-        logger.error(`⚠️ Error al obtener la cola de envío: ${error.message}`);
+        if (error.response && error.response.status === 404) {
+            // Tratar 404 como "no hay mensajes en la cola"
+            logger.info('📭 No hay mensajes en la cola (Error 404).');
+            messageQueue = []; // Vaciar la cola local
+        } else {
+            logger.error(`⚠️ Error al obtener la cola de envío: ${error.message}`);
+        }
     }
 }
 
@@ -290,7 +299,7 @@ async function sendMessage(instance, messageData, attempt = 1) {
         await new Promise(resolve => setTimeout(resolve, typingDelay));
 
         logger.info(`📤 Enviando mensaje desde ${instance.name} a número: ${messageData.tenvio}`);
-        logger.debug(`📤 Datos del mensaje a enviar: ${JSON.stringify(messageData)}`); // Log de depuración
+        logger.debug(`📤 Datos del mensaje a enviar: Número=${messageData.tenvio}, Texto=${messageData.mensaje}`);
 
         const response = await axios.post(`${CONFIG.SEND_MESSAGE_API_BASE_URL}${instance.name}`, {
             number: messageData.tenvio,
@@ -315,6 +324,11 @@ async function sendMessage(instance, messageData, attempt = 1) {
         await confirmMessageSend(response.status, messageData.idSendmessage, instance.name);
     } catch (error) {
         logger.error(`❌ Error al enviar mensaje desde ${instance.name}: ${error.message}`);
+
+        if (error.response) {
+            logger.error(`⚠️ Detalle del error: Status=${error.response.status}, Data=${JSON.stringify(error.response.data)}`);
+        }
+
         await writeToLog('Error en el envío', messageData.tenvio, messageData.idSendmessage, instance.name);
 
         if (error.response && error.response.status === 400) {
