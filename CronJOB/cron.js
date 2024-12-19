@@ -211,16 +211,14 @@ async function fetchMessageQueue() {
         logger.debug(`Consultando la cola de envío en: ${CONFIG.QUEUE_API_URL}`);
         const response = await axios.get(CONFIG.QUEUE_API_URL);
 
-        // Verificar si la API indica que no hay mensajes
         if (response.data.message && response.data.message === "No hay registros en la cola de envío.") {
             logger.info('📭 No hay mensajes en la cola.');
-            messageQueue = []; // Vaciar la cola local
+            messageQueue = [];
             return;
         }
 
-        // Verificar si la respuesta es un array o un único objeto
         if (!Array.isArray(response.data)) {
-            // Asumir que la API devuelve un único mensaje como objeto
+            // Un solo mensaje
             const { error, value } = messageSchema.validate(response.data);
             if (error) {
                 logger.error(`❌ Mensaje con estructura inválida detectado: ${error.message}. Datos: ${JSON.stringify(response.data)}`);
@@ -230,25 +228,39 @@ async function fetchMessageQueue() {
             if (!inProgressMessages.has(value.idSendmessage) && !sentMessages.has(value.idSendmessage)) {
                 messageQueue.push(value);
                 logger.info(`📬 Se agregó un nuevo mensaje a la cola: ID ${value.idSendmessage}`);
+            } else {
+                if (inProgressMessages.has(value.idSendmessage)) {
+                    logger.debug(`Mensaje ${value.idSendmessage} ignorado: ya en progreso`);
+                }
+                if (sentMessages.has(value.idSendmessage)) {
+                    logger.debug(`Mensaje ${value.idSendmessage} ignorado: ya enviado anteriormente`);
+                }
+                logger.info('📭 No hay nuevos mensajes para agregar a la cola.');
             }
+
         } else {
-            // La API devuelve un array de mensajes
+            // Múltiples mensajes
             const apiMessageIds = new Set();
             const newMessages = [];
 
             response.data.forEach(message => {
-                // Validar la estructura
                 const { error, value } = messageSchema.validate(message);
                 if (error) {
                     logger.error(`❌ Mensaje con estructura inválida detectado: ${error.message}. Datos: ${JSON.stringify(message)}`);
                     return;
                 }
 
-                apiMessageIds.add(message.idSendmessage);
+                apiMessageIds.add(value.idSendmessage);
 
-                // Si el mensaje ya ha sido enviado o está en progreso, no agregarlo
-                if (!inProgressMessages.has(message.idSendmessage) && !sentMessages.has(message.idSendmessage)) {
-                    newMessages.push(message);
+                if (!inProgressMessages.has(value.idSendmessage) && !sentMessages.has(value.idSendmessage)) {
+                    newMessages.push(value);
+                } else {
+                    if (inProgressMessages.has(value.idSendmessage)) {
+                        logger.debug(`Mensaje ${value.idSendmessage} ignorado: ya en progreso`);
+                    }
+                    if (sentMessages.has(value.idSendmessage)) {
+                        logger.debug(`Mensaje ${value.idSendmessage} ignorado: ya enviado anteriormente`);
+                    }
                 }
             });
 
@@ -259,7 +271,7 @@ async function fetchMessageQueue() {
                 logger.info('📭 No hay nuevos mensajes para agregar a la cola.');
             }
 
-            // Eliminar de messageQueue los mensajes que ya no están en la API
+            // Limpiar mensajes no presentes en la API
             const beforeLength = messageQueue.length;
             messageQueue = messageQueue.filter(message => apiMessageIds.has(message.idSendmessage));
             const afterLength = messageQueue.length;
@@ -270,23 +282,21 @@ async function fetchMessageQueue() {
 
     } catch (error) {
         if (error.response && error.response.status === 404) {
-            // Tratar 404 como "no hay mensajes en la cola"
             logger.info('📭 No hay mensajes en la cola (Error 404).');
-            messageQueue = []; // Vaciar la cola local
+            messageQueue = [];
         } else {
             logger.error(`⚠️ Error al obtener la cola de envío: ${error.message}`);
         }
     }
 }
 
-// Función para obtener el próximo mensaje de la cola de envío
+// Función para obtener el próximo mensaje de la cola de envío (ya no llama a fetchMessageQueue)
 async function getNextQueueMessage() {
     try {
-        await fetchMessageQueue(); // Actualizar la cola de mensajes
         if (messageQueue.length === 0) {
             return null;
         }
-        return messageQueue.shift(); // Retornar y eliminar el primer mensaje de la cola
+        return messageQueue.shift();
     } catch (error) {
         logger.error(`⚠️ Error en getNextQueueMessage: ${error.message}`);
         return null;
@@ -432,7 +442,7 @@ async function manageMessageSending() {
     while (true) {
         logger.info('🚀 Iniciando gestión de envío de mensajes en paralelo...');
         await getActiveInstances();
-        await fetchMessageQueue();
+        await fetchMessageQueue(); // Se actualiza la cola aquí
 
         if (instances.length === 0) {
             logger.warn('⚠️ No hay instancias activas. Esperando 60 segundos antes de reintentar.');
