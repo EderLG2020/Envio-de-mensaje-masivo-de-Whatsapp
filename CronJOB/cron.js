@@ -65,6 +65,9 @@ const instanceFlags = {};
 // Cola centralizada de mensajes
 let messageQueue = [];
 
+// Cola de operaciones de guardado
+let saveQueue = Promise.resolve();
+
 // Función para cargar mensajes enviados desde el archivo
 async function loadSentMessages() {
     try {
@@ -75,7 +78,7 @@ async function loadSentMessages() {
     } catch (error) {
         if (error.code === 'ENOENT') {
             // Archivo no existe, crear uno nuevo
-            await fs.writeFile(CONFIG.SENT_MESSAGES_FILE, JSON.stringify([]), CONFIG.LOG_ENCODING);
+            await fs.writeFile(CONFIG.SENT_MESSAGES_FILE, JSON.stringify([], null, 2), CONFIG.LOG_ENCODING);
             sentMessages = new Set();
             logger.info('✅ Archivo de mensajes enviados creado.');
         } else {
@@ -85,14 +88,13 @@ async function loadSentMessages() {
     }
 }
 
-// Función para guardar mensajes enviados en el archivo
+// Función para guardar mensajes enviados en el archivo de manera secuencial
 async function saveSentMessages() {
-    try {
-        await fs.writeFile(CONFIG.SENT_MESSAGES_FILE, JSON.stringify([...sentMessages]), CONFIG.LOG_ENCODING);
-        logger.info(`✅ Guardados ${sentMessages.size} mensajes enviados en el archivo.`);
-    } catch (error) {
-        logger.error(`⚠️ Error al guardar mensajes enviados: ${error.message}`);
-    }
+    saveQueue = saveQueue
+        .then(() => fs.writeFile(CONFIG.SENT_MESSAGES_FILE, JSON.stringify([...sentMessages], null, 2), CONFIG.LOG_ENCODING))
+        .then(() => logger.info(`✅ Guardados ${sentMessages.size} mensajes enviados en el archivo.`))
+        .catch(error => logger.error(`⚠️ Error al guardar mensajes enviados: ${error.message}`));
+    return saveQueue;
 }
 
 // Función para obtener el tiempo actual formateado
@@ -315,7 +317,7 @@ async function sendMessage(instance, messageData, attempt = 1) {
             logger.info(`✅ Mensaje enviado correctamente desde ${instance.name}`);
             await writeToLog('Enviado correctamente', messageData.tenvio, messageData.idSendmessage, instance.name);
             sentMessages.add(messageData.idSendmessage);
-            await saveSentMessages();
+            await saveSentMessages(); // Asegura que se guarda después de cada mensaje enviado
         } else {
             logger.warn(`⚠️ Mensaje enviado con advertencia desde ${instance.name}, status: ${response.status}`);
             await writeToLog('Enviado con advertencia', messageData.tenvio, messageData.idSendmessage, instance.name);
