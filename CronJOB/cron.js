@@ -70,8 +70,17 @@ async function loadSentMessages() {
     try {
         const data = await fs.readFile(CONFIG.SENT_MESSAGES_FILE, CONFIG.LOG_ENCODING);
         const parsed = JSON.parse(data);
-        sentMessages = new Set(parsed);
-        logger.info(`✅ Cargados ${sentMessages.size} mensajes previamente enviados.`);
+        const now = Date.now();
+        const expirationTime = 24 * 60 * 60 * 1000; // 24 horas
+
+        // Filtrar mensajes que no han expirado
+        sentMessages = new Set(
+            parsed
+                .filter(message => now - new Date(message.timestamp).getTime() < expirationTime)
+                .map(message => message.idSendmessage)
+        );
+
+        logger.info(`✅ Cargados ${sentMessages.size} mensajes enviados en las últimas 24 horas.`);
     } catch (error) {
         if (error.code === 'ENOENT') {
             // Archivo no existe, crear uno nuevo
@@ -88,7 +97,11 @@ async function loadSentMessages() {
 // Función para guardar mensajes enviados en el archivo
 async function saveSentMessages() {
     try {
-        await fs.writeFile(CONFIG.SENT_MESSAGES_FILE, JSON.stringify([...sentMessages]), CONFIG.LOG_ENCODING);
+        const messagesArray = Array.from(sentMessages).map(id => ({
+            idSendmessage: id,
+            timestamp: new Date().toISOString()
+        }));
+        await fs.writeFile(CONFIG.SENT_MESSAGES_FILE, JSON.stringify(messagesArray), CONFIG.LOG_ENCODING);
         logger.info(`✅ Guardados ${sentMessages.size} mensajes enviados en el archivo.`);
     } catch (error) {
         logger.error(`⚠️ Error al guardar mensajes enviados: ${error.message}`);
@@ -150,7 +163,7 @@ function simulateTypingTime(message) {
 async function getActiveInstances() {
     try {
         logger.info('🔍 Consultando instancias activas...');
-        logger.debug(`Consultando la cola de envío en: ${CONFIG.INSTANCES_API_URL}`);
+        logger.debug(`Consultando las instancias en: ${CONFIG.INSTANCES_API_URL}`);
         const response = await axios.get(CONFIG.INSTANCES_API_URL);
         const activeInstances = response.data.filter(instance => instance.connectionStatus === 'open');
 
@@ -208,11 +221,16 @@ async function fetchMessageQueue() {
         logger.info('🔄 Actualizando la cola de mensajes...');
         logger.debug(`Consultando la cola de envío en: ${CONFIG.QUEUE_API_URL}`);
         const response = await axios.get(CONFIG.QUEUE_API_URL);
-
+        
         // Verificar si la API indica que no hay mensajes
         if (response.data.message && response.data.message === "No hay registros en la cola de envío.") {
             logger.info('📭 No hay mensajes en la cola.');
             messageQueue = []; // Vaciar la cola local
+
+            // Opcional: Limpiar sentMessages si no hay mensajes en la cola
+            sentMessages.clear();
+            await saveSentMessages();
+
             return;
         }
 
@@ -257,13 +275,14 @@ async function fetchMessageQueue() {
                 logger.info('📭 No hay nuevos mensajes para agregar a la cola.');
             }
 
-            // Eliminar de messageQueue los mensajes que ya no están en la API
-            const beforeLength = messageQueue.length;
-            messageQueue = messageQueue.filter(message => apiMessageIds.has(message.idSendmessage));
-            const afterLength = messageQueue.length;
-            if (beforeLength !== afterLength) {
-                logger.info(`🗑️ Se eliminaron ${beforeLength - afterLength} mensajes obsoletos de la cola local.`);
-            }
+            // Eliminar de sentMessages los IDs que ya no están en la API ni en progreso
+            sentMessages.forEach(id => {
+                if (!apiMessageIds.has(id) && !inProgressMessages.has(id)) {
+                    sentMessages.delete(id);
+                }
+            });
+
+            await saveSentMessages();
         }
 
     } catch (error) {
@@ -271,6 +290,10 @@ async function fetchMessageQueue() {
             // Tratar 404 como "no hay mensajes en la cola"
             logger.info('📭 No hay mensajes en la cola (Error 404).');
             messageQueue = []; // Vaciar la cola local
+
+            // Opcional: Limpiar sentMessages si no hay mensajes en la cola
+            sentMessages.clear();
+            await saveSentMessages();
         } else {
             logger.error(`⚠️ Error al obtener la cola de envío: ${error.message}`);
         }
@@ -453,7 +476,7 @@ process.on('uncaughtException', (error) => {
     process.exit(1);
 });
 
-// Inicializar el sistema
+// Función para inicializar el sistema
 async function initialize() {
     await loadSentMessages();
     manageMessageSending().catch(error => {
