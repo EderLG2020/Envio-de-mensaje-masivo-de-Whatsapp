@@ -235,3 +235,4 @@ manageMessageSending().catch(error => {
     console.error(`[${getCurrentTime()}] 🔴 Error crítico en manageMessageSending: ${error.message}`);
     process.exit(1);
 });
+
