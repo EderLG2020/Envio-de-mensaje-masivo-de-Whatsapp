@@ -124,10 +124,10 @@ app.post("/api/send-whatsapp/registro", async (req, res) => {
 
   try {
     // Realizar la solicitud POST a la API externa con el nuevo formato de body
-    const response = await axios.post(
-      `${EXTERNAL_API_BASE_URL}/api/sendwhatsapp/Registro`,
+    // const response = await axios.post(
+    //   `${EXTERNAL_API_BASE_URL}/api/sendwhatsapp/Registro`,
+    const response = await axios.post('http://10.10.10.10:5000/api/sendwhatsapp/Registro',
       {
-        // const response = await axios.post('http://10.10.10.10:5000/api/sendwhatsapp/Registro', {
         Campania,
         Titulo,
         Mensaje,
