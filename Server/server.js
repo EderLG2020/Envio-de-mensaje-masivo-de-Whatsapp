@@ -119,6 +119,7 @@ app.post("/api/send-whatsapp/registro", async (req, res) => {
     Cantidad,
     Empresa,
     TelefonosNombres,
+    Media
   } = req.body;
 
   try {
@@ -134,6 +135,7 @@ app.post("/api/send-whatsapp/registro", async (req, res) => {
         Cantidad,
         Empresa,
         TelefonosNombres,
+        Media,
       }
     );
 

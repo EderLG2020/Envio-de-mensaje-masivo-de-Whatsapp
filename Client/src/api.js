@@ -121,18 +121,20 @@ export const registerCampaign = async (
   mensaje,
   tipo,
   cantidad,
-  telefonosNombres
+  telefonosNombres,
+  // Media
 ) => {
   try {
-    const response = await axios.post(`${API_URL}/send-whatsapp/registro`, {
-      // const response = await axios.post('http://10.10.10.10:5000/api/sendwhatsapp/Registro', {
+    // const response = await axios.post(`${API_URL}/send-whatsapp/registro`, {
+    const response = await axios.post('http://10.10.10.10:5000/api/sendwhatsapp/Registro', {
       Campania: campania,
       Titulo: titulo,
       Mensaje: mensaje,
       Tipo: tipo,
       Cantidad: cantidad,
       Empresa: "Yego",
-      TelefonosNombres: telefonosNombres, // Se envía el array de objetos con Tenvio y Nevio
+      TelefonosNombres: telefonosNombres,
+      Media: '' // Se envía el array de objetos con Tenvio y Nevio
     });
     return response.data;
   } catch (error) {
