@@ -83,7 +83,6 @@ const messageSchema = Joi.object({
 /************************************
  * VARIABLES GLOBALES
  ************************************/
-
 // Lista de instancias activas (cada objeto = { name, token, messagesSentCount, etc. })
 let instances = [];
 
@@ -101,10 +100,16 @@ const instanceFlags = {};  // { [instanceName]: { active: boolean } }
  * FUNCIONES DE UTILIDAD
  ************************************/
 
+/**
+ * Retorna un número aleatorio entre min y max (inclusive).
+ */
 function getRandomTime(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+/**
+ * Retorna un tiempo aleatorio normal o extendido.
+ */
 function getExtendedRandomTime() {
   const randomChance = Math.random();
   if (randomChance < CONFIG.EXTENDED_PAUSE_PROBABILITY) {
@@ -115,14 +120,15 @@ function getExtendedRandomTime() {
   return getRandomTime(CONFIG.MESSAGE_INTERVAL_MIN, CONFIG.MESSAGE_INTERVAL_MAX);
 }
 
+/**
+ * Posible pausa ocasional larga, para evitar detección.
+ */
 function simulateOccasionalBreak() {
   const chance = Math.random();
   if (chance < CONFIG.OCCASIONAL_BREAK_PROBABILITY) {
     const longBreak = getRandomTime(CONFIG.OCCASIONAL_BREAK_MIN, CONFIG.OCCASIONAL_BREAK_MAX);
     logger.info(
-      `🛑 Tomando una pausa de ${(longBreak / 1000 / 60).toFixed(
-        2
-      )} minutos para evitar detección.`
+      `🛑 Tomando una pausa de ${(longBreak / 1000 / 60).toFixed(2)} minutos para evitar detección.`
     );
     return longBreak;
   }
@@ -131,7 +137,7 @@ function simulateOccasionalBreak() {
 
 /**
  * Simula tiempo de tecleo basado en la longitud del mensaje.
- * @param {string} message 
+ * @param {string} message
  * @returns {number} Tiempo en ms
  */
 function simulateTypingTime(message) {
@@ -153,6 +159,7 @@ async function loadSentMessages() {
     logger.info(`✅ Cargados ${sentMessages.size} mensajes previamente enviados.`);
   } catch (error) {
     if (error.code === 'ENOENT') {
+      // Si no existe el archivo, lo creamos vacío
       await fs.writeFile(
         CONFIG.SENT_MESSAGES_FILE,
         JSON.stringify([], null, 2),
@@ -185,8 +192,15 @@ async function saveSentMessages() {
  ************************************/
 
 /**
- * Consulta la cola de mensajes y la actualiza en `messageQueue`.
- * Se llama periódicamente con setInterval.
+ * Consulta la cola de mensajes en la API y la actualiza en `messageQueue`.
+ * Se llama periódicamente con setInterval (cada 15s).
+ *
+ * 1. Si la API dice "No hay registros", vaciamos la cola local.
+ * 2. De lo contrario, validamos cada mensaje que llega:
+ *    - Descartamos si está en progreso o en `sentMessages`.
+ *    - Agregamos al local los que sean nuevos.
+ * 3. Eliminamos de la cola local los que ya no están en la API.
+ *    (así solo enviamos lo que todavía figure en el API).
  */
 async function fetchMessageQueue() {
   try {
@@ -208,6 +222,7 @@ async function fetchMessageQueue() {
       incomingMessages = [response.data];
     }
 
+    // Set con todos los IDs que siguen vigentes en la API
     const apiMessageIds = new Set();
     const newMessages = [];
 
@@ -223,6 +238,7 @@ async function fetchMessageQueue() {
 
       apiMessageIds.add(value.idSendmessage);
 
+      // Descartar si ya está en proceso o enviado
       if (inProgressMessages.has(value.idSendmessage)) {
         logger.debug(`Mensaje ${value.idSendmessage} ignorado: ya en progreso`);
         continue;
@@ -232,7 +248,7 @@ async function fetchMessageQueue() {
         continue;
       }
 
-      // Si pasa todas las validaciones, lo agregamos
+      // Si pasa validaciones, lo agregamos
       newMessages.push(value);
     }
 
@@ -243,7 +259,7 @@ async function fetchMessageQueue() {
       logger.info('📭 No hay nuevos mensajes para agregar a la cola.');
     }
 
-    // Limpiar de la cola local los mensajes que ya no estén en la API
+    // **Importante**: eliminar localmente lo que ya no está en la API
     const beforeLength = messageQueue.length;
     messageQueue = messageQueue.filter((m) => apiMessageIds.has(m.idSendmessage));
     const afterLength = messageQueue.length;
@@ -263,7 +279,7 @@ async function fetchMessageQueue() {
 }
 
 /**
- * Extrae un mensaje de la cola en memoria. 
+ * Extrae un mensaje de la cola en memoria.
  * Retorna `null` si no hay mensajes.
  */
 function getNextQueueMessage() {
@@ -303,7 +319,7 @@ async function getActiveInstances() {
     const newInstances = activeInstances.filter((i) => !oldNames.includes(i.name));
     const disconnected = instances.filter((i) => !activeNames.includes(i.name));
 
-    // Actualizamos la lista de instancias
+    // Actualiza la lista de instancias global
     instances = activeInstances.map((instance) => ({
       name: instance.name,
       ownerJid: instance.ownerJid,
@@ -312,7 +328,7 @@ async function getActiveInstances() {
       isPaused: instance.isPaused || false,
     }));
 
-    // Iniciar envío para nuevas instancias
+    // Iniciar envío para las nuevas instancias
     for (const inst of newInstances) {
       if (!instanceFlags[inst.name]) {
         instanceFlags[inst.name] = { active: true };
@@ -409,6 +425,7 @@ async function sendMessage(instance, messageData, attempt = 1) {
       );
     }
   } finally {
+    // Siempre quitar del set inProgressMessages
     inProgressMessages.delete(messageData.idSendmessage);
   }
 }
@@ -436,7 +453,7 @@ async function confirmMessageSend(statusCode, idSendmessage, instanceName) {
 
 /**
  * Bucle de envío para cada instancia.
- * Mientras la instancia esté activa (`flag.active`), toma mensajes de la cola y los envía.
+ * Mientras la instancia esté activa (flag.active), toma mensajes de la cola y los envía.
  */
 async function manageInstanceSending(instance, flag) {
   while (flag.active) {
@@ -502,7 +519,7 @@ async function manageInstanceSending(instance, flag) {
 async function initialize() {
   await loadSentMessages();
 
-  // Llamada inicial (para que no esperemos al primer interval)
+  // Llamada inicial (para no esperar al primer interval)
   await fetchMessageQueue();
   await getActiveInstances();
 
