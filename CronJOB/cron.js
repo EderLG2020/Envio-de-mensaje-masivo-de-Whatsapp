@@ -12,8 +12,9 @@ const Joi = require('joi');
 /****************************************************
  * CONFIGURACIÓN DE LOGS (WINSTON)
  ****************************************************/
+// Con level='info' veremos pocos logs, 
+// pero al menos uno por cada polling (para saber que sigue vivo).
 const logger = winston.createLogger({
-  // Usa 'info' o 'warn' si quieres aún menos detalle
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -35,14 +36,14 @@ const CONFIG = {
   REDIS_URL: 'redis://127.0.0.1:6379',
 
   // Polling
-  POLLING_INSTANCES_INTERVAL: 8000, // cada 8s para re-verificar instancias
-  MIN_POLL_INTERVAL: 3000,         // polling rápido (3s)
-  MAX_POLL_INTERVAL: 15000,        // polling lento (15s)
+  POLLING_INSTANCES_INTERVAL: 8000, // cada 8s re-verificamos instancias
+  MIN_POLL_INTERVAL: 3000,         // poll rápido (3s)
+  MAX_POLL_INTERVAL: 15000,        // poll lento (15s)
 
   // Lógica de envío
   MAX_MESSAGES_PER_INSTANCE: 7,
 
-  // Pausas para evitar spam
+  // Pausas
   MESSAGE_INTERVAL_MIN: 2000,  // 2s
   MESSAGE_INTERVAL_MAX: 5000,  // 5s
 
@@ -77,14 +78,13 @@ const messageSchema = Joi.object({
   idSendmessage: Joi.number().required(),
   tenvio: Joi.string().required(),
   mensaje: Joi.string().required(),
-}).unknown(true); 
-// .unknown(true) => acepta campos extra sin problemas
+}).unknown(true);
 
 /****************************************************
  * VARIABLES GLOBALES
  ****************************************************/
-let activeInstances = [];     // Instancias “open”
-let sentMessages = new Set(); // ID de mensajes ya enviados (persistidos)
+let activeInstances = [];
+let sentMessages = new Set();
 
 // Conexión Redis
 const redisConnection = new Redis(CONFIG.REDIS_URL);
@@ -98,14 +98,14 @@ const sendQueue = new Bull('sendQueue', {
   },
 });
 
-// Estadísticas por instancia
+// Stats por instancia
 const instanceStats = {};
 
-// IDs vigentes en la API
+// IDs vigentes en la API (los que aún no se eliminan)
 let remoteValidIds = new Set();
 
 /****************************************************
- * FUNCIONES DE UTILIDAD (PAUSAS, ETC.)
+ * FUNCIONES DE UTILIDAD
  ****************************************************/
 function getRandomTime(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -133,7 +133,7 @@ function simulateOccasionalBreak() {
 }
 
 /****************************************************
- * PERSISTENCIA DE MENSAJES
+ * PERSISTENCIA DE MENSAJES (ID ya enviados)
  ****************************************************/
 async function loadSentMessages() {
   try {
@@ -171,21 +171,22 @@ async function saveSentMessages() {
 }
 
 /****************************************************
- * POLLING DE LA COLA (ADAPTATIVO)
+ * POLLING DE LA COLA (ADAPTATIVO, CON LOGS BÁSICOS)
  ****************************************************/
 let currentPollInterval = CONFIG.MIN_POLL_INTERVAL;
 let pollTimeout = null;
 
 async function updateLocalQueueFromRemote() {
+  logger.info(`🔄 Polling de la cola: intentando obtener mensajes...`);
   try {
-    // Pedimos la cola
     const response = await axios.get(CONFIG.QUEUE_API_URL);
 
-    // Si la API responde "No hay registros", vaciamos local
+    // Caso: "No hay registros"
     if (response.data?.message?.includes('No hay registros')) {
-      logger.info('📭 La API no tiene registros actualmente.');
+      logger.info('📭 API => “No hay registros”');
       remoteValidIds = new Set();
       currentPollInterval = Math.min(currentPollInterval * 1.5, CONFIG.MAX_POLL_INTERVAL);
+      // Limpia jobs que localmente ya no estén en la API
       await removeNonExistingJobs(remoteValidIds);
       return;
     }
@@ -203,21 +204,21 @@ async function updateLocalQueueFromRemote() {
     for (const rawMsg of incoming) {
       const { error, value } = messageSchema.validate(rawMsg);
       if (error) {
-        // Mensaje no cumple schema
+        // Si no cumple schema, se ignora sin log extra
         continue;
       }
       newRemoteIds.add(value.idSendmessage);
 
-      // Si ya se envió, skip
+      // Ver si ya enviado
       if (sentMessages.has(value.idSendmessage)) {
         continue;
       }
 
-      // Si Bull ya tiene un job con jobId=msg-<id>, skip
+      // Ver si ya hay job con jobId=msg-<id>
       const jobId = `msg-${value.idSendmessage}`;
       const existingJob = await sendQueue.getJob(jobId);
       if (existingJob) {
-        // Ya existe, skip
+        // Ya existe => no duplicar
         continue;
       }
 
@@ -232,16 +233,18 @@ async function updateLocalQueueFromRemote() {
       logger.info(`📬 Se encolaron ${newCount} mensajes nuevos.`);
       currentPollInterval = CONFIG.MIN_POLL_INTERVAL;
     } else {
+      logger.info(`📭 Cola sin nuevos mensajes. Manteniendo/ajustando poll.`);
       currentPollInterval = Math.min(currentPollInterval * 1.2, CONFIG.MAX_POLL_INTERVAL);
     }
 
-    // Eliminamos lo que no esté ya en la API
+    // Eliminar jobs que ya no están en la API
     await removeNonExistingJobs(remoteValidIds);
 
   } catch (err) {
     logger.error(`⚠️ Error al obtener cola: ${err.message}`);
     currentPollInterval = 10000;
   } finally {
+    // Programamos el siguiente polling
     pollTimeout = setTimeout(updateLocalQueueFromRemote, currentPollInterval);
   }
 }
@@ -257,18 +260,20 @@ async function removeNonExistingJobs(remoteIds) {
     }
   }
   if (removedCount > 0) {
-    logger.info(`🗑️ Se eliminaron ${removedCount} jobs obsoletos de la cola local.`);
+    logger.info(`🗑️ Eliminados ${removedCount} jobs obsoletos localmente (API no los muestra).`);
   }
 }
 
 /****************************************************
- * POLLING DE INSTANCIAS
+ * POLLING DE INSTANCIAS (CON ALGÚN LOG)
  ****************************************************/
 async function updateActiveInstances() {
+  logger.info('🔍 Polling de instancias...');
   try {
     const resp = await axios.get(CONFIG.INSTANCES_API_URL);
     const openOnes = resp.data.filter((i) => i.connectionStatus === 'open');
     if (!openOnes.length) {
+      logger.info('❌ Sin instancias activas en la API.');
       activeInstances = [];
       return;
     }
@@ -276,49 +281,54 @@ async function updateActiveInstances() {
       name: i.name,
       token: i.token,
     }));
+    logger.info(`🟢 Instancias activas => ${activeInstances.map((i) => i.name).join(', ')}`);
   } catch (error) {
     logger.error(`⚠️ Error al obtener instancias: ${error.message}`);
     activeInstances = [];
   }
 }
 
+/****************************************************
+ * ELECCIÓN DE INSTANCIA
+ ****************************************************/
 function getAvailableInstance() {
   const candidates = activeInstances.map((inst) => {
     const st = instanceStats[inst.name] || { count: 0 };
     return { ...inst, ...st };
   });
   if (!candidates.length) return null;
+
+  // Ordenar por la que tenga menos count
   candidates.sort((a, b) => (a.count || 0) - (b.count || 0));
   return candidates[0];
 }
 
 /****************************************************
- * PROCESADOR DE BULL
+ * PROCESAMIENTO DE BULL
  ****************************************************/
 sendQueue.process(3, async (job) => {
   const data = job.data;
 
-  // Chequeo final
+  // si la API ya no lo considera vigente
   if (!remoteValidIds.has(data.idSendmessage)) {
-    // Ya no está en la API
     return;
   }
+  // si ya se envió
   if (sentMessages.has(data.idSendmessage)) {
-    // Ya enviado
     return;
   }
 
+  // buscar instancia
   const inst = getAvailableInstance();
   if (!inst) {
-    // No hay instancias => reintentamos luego
+    // no hay instancias
     throw new Error('No instance available');
   }
-
   if (!instanceStats[inst.name]) {
     instanceStats[inst.name] = { count: 0 };
   }
 
-  // Si alcanzó el máximo de msgs, pausa
+  // Si alcanzó máximo
   if (instanceStats[inst.name].count >= CONFIG.MAX_MESSAGES_PER_INSTANCE) {
     const bigBreak = simulateOccasionalBreak();
     if (bigBreak > 0) {
@@ -331,11 +341,10 @@ sendQueue.process(3, async (job) => {
     }
   }
 
-  // Pausa para simular tipeo
+  // Tipeo
   const typingDelay = simulateTypingTime(data.mensaje);
   await new Promise((r) => setTimeout(r, typingDelay));
 
-  // Enviar
   try {
     const resp = await axios.post(
       `${CONFIG.SEND_MESSAGE_API_BASE_URL}${inst.name}`,
@@ -362,18 +371,19 @@ sendQueue.process(3, async (job) => {
     await new Promise((r) => setTimeout(r, waitTime));
 
   } catch (err) {
+    // Si 400 => no reintento
     if (err.response?.status === 400) {
       await confirmMessageSend(400, data.idSendmessage, inst.name);
       return;
     }
-    throw err;
+    throw err; // reintentar
   }
 });
 
 sendQueue.on('failed', async (job, err) => {
   const attemptsMade = job.attemptsMade || 1;
   if (attemptsMade >= CONFIG.MAX_RETRIES) {
-    logger.error(`❌ Job#${job.id} agotó reintentos. Error: ${err.message}`);
+    logger.error(`❌ Job#${job.id} agotó reintentos => ${err.message}`);
   } else {
     const retryDelay = getRandomTime(CONFIG.RETRY_DELAY_MIN, CONFIG.RETRY_DELAY_MAX);
     job.opts.backoff = { type: 'fixed', delay: retryDelay };
@@ -392,7 +402,6 @@ async function confirmMessageSend(statusCode, id, instanceName) {
       Cenvio: cenvio,
     });
   } catch (err) {
-    // Si falla, simplemente log
     logger.error(`⚠️ Error al confirmar #${id}: ${err.message}`);
   }
 }
@@ -401,14 +410,17 @@ async function confirmMessageSend(statusCode, id, instanceName) {
  * INICIALIZACIÓN
  ****************************************************/
 async function init() {
+  // cargar IDs ya enviados
   await loadSentMessages();
 
-  // Polling de la cola y de instancias
+  // iniciar polling de la cola
   updateLocalQueueFromRemote();
+
+  // iniciar polling de instancias
   updateActiveInstances();
   setInterval(updateActiveInstances, CONFIG.POLLING_INSTANCES_INTERVAL);
 
-  // Config reintentos
+  // config reintentos globales
   sendQueue.defaultJobOptions = {
     attempts: CONFIG.MAX_RETRIES,
     backoff: {
