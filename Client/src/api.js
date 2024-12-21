@@ -125,8 +125,8 @@ export const registerCampaign = async (
   // Media
 ) => {
   try {
-    // const response = await axios.post(`${API_URL}/send-whatsapp/registro`, {
-    const response = await axios.post('http://10.10.10.10:5000/api/sendwhatsapp/Registro', {
+    const response = await axios.post(`${API_URL}/send-whatsapp/registro`, {
+    // const response = await axios.post('http://10.10.10.10:5000/api/sendwhatsapp/Registro', {
       Campania: campania,
       Titulo: titulo,
       Mensaje: mensaje,
