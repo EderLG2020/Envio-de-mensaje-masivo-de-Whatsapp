@@ -24,6 +24,8 @@ function Campanas() {
   const [rowCount, setRowCount] = useState(0);
   const [selectedType, setSelectedType] = useState("texto");
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFileImagenVideo, setSelectedFileImagenVideo] = useState(null);
+  const [media,setmedia]=useState("");
   const [telefonosNombres, setTelefonosNombres] = useState([]);
   const [summaryData, setSummaryData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,7 @@ function Campanas() {
     setSelectedFile(null);
     setSelectedType("texto");
     setModalIsOpen(true);
+    setSelectedFileImagenVideo(null)
   };
 
   const closeModal = () => {
@@ -95,6 +98,7 @@ function Campanas() {
     setSelectedFile(null);
     setSelectedType("texto");
     setModalIsOpen(false);
+    setSelectedFileImagenVideo(null)
   };
 
   useEffect(() => {
@@ -117,8 +121,15 @@ function Campanas() {
 
   const handleTypeChange = (e) => {
     setSelectedType(e.target.value);
+    
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setmedia(file)
+    setSelectedFileImagenVideo(file.name)
+  };
+  
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -173,7 +184,9 @@ function Campanas() {
         campaignText,
         selectedType,
         rowCount,
-        telefonosNombres
+        telefonosNombres,
+        media,
+        setLoading
       );
 
       Swal.fire({
@@ -419,19 +432,18 @@ function Campanas() {
           {summaryData.length > 0 ? (
             summaryData.map((item, index) => (
               <div
-                className={`card ${
-                  item.idestado === 3
-                    ? "card-pause"
-                    : item.idestado === 0
+                className={`card ${item.idestado === 3
+                  ? "card-pause"
+                  : item.idestado === 0
                     ? "card-pending"
                     : item.idestado === 6
-                    ? "card-cancel"
-                    : item.idestado === 4
-                    ? "card-sending"
-                    : item.idestado === 5
-                    ? "card-completed"
-                    : ""
-                }`}
+                      ? "card-cancel"
+                      : item.idestado === 4
+                        ? "card-sending"
+                        : item.idestado === 5
+                          ? "card-completed"
+                          : ""
+                  }`}
                 key={index}
               >
                 <div className="card-header">
@@ -461,9 +473,8 @@ function Campanas() {
                   </div>
                   {/* Contenido que se expande al hacer clic */}
                   <div
-                    className={`content ${
-                      expandedId === item.idcampania ? "show" : ""
-                    }`}
+                    className={`content ${expandedId === item.idcampania ? "show" : ""
+                      }`}
                   >
                     {item.mensaje}
                   </div>
@@ -578,6 +589,27 @@ function Campanas() {
                   <option value="imagen">Imagen</option>
                   <option value="video">Video</option>
                 </select>
+
+                {(selectedType === "imagen" || selectedType === "video") && (
+                  <div className="divfileInputImagenVideo">
+                    <label
+                      className="fileInputImagenVideo"
+                      htmlFor="file-upload-imagen-video"
+                      style={{ cursor: "pointer" }}
+                    >
+                      Cargar {selectedType}
+                    </label>
+                    <input
+                      onChange={handleFileChange}
+                      type="file"
+                      id="file-upload-imagen-video"
+                      accept={selectedType === 'imagen' ? "image/jpeg" : selectedType === 'video' ? "video/mp4" : ""}
+                    />
+                    <span className="file-selected">
+                      {selectedFileImagenVideo || "Sin archivos seleccionados"}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="custom-modal-actions">

@@ -122,11 +122,33 @@ export const registerCampaign = async (
   tipo,
   cantidad,
   telefonosNombres,
-  // Media
+  media,
+  setLoading
 ) => {
   try {
-    const response = await axios.post(`${API_URL}/send-whatsapp/registro`, {
-    // const response = await axios.post('http://10.10.10.10:5000/api/sendwhatsapp/Registro', {
+    setLoading(true); // Activar el indicador de carga
+
+    let imgUrl = ""; // URL de la imagen (inicialmente vacía)
+
+    // Si el tipo es "imagen" y media no está vacío, subir la imagen
+    if(tipo === "imagen" || tipo === "video") {
+      const formImg = new FormData();
+      formImg.append("bucket", "masivo");
+      formImg.append("file", media);
+
+      // Subir la imagen al servidor
+      const imgResponse = await axios.post("https://cloud.3w.pe/media", formImg, {
+        headers: {
+          'Content-Type': 'multipart/form-data', // Asegúrate de configurar el encabezado
+        },
+      });
+
+      // Obtener la URL de la imagen subida
+      imgUrl = imgResponse.data.url;
+      console.log("Imagen subida exitosamente. URL:", imgUrl);
+    }
+
+    const requestBody = {
       Campania: campania,
       Titulo: titulo,
       Mensaje: mensaje,
@@ -134,14 +156,22 @@ export const registerCampaign = async (
       Cantidad: cantidad,
       Empresa: "Yego",
       TelefonosNombres: telefonosNombres,
-      Media: '' // Se envía el array de objetos con Tenvio y Nevio
-    });
+      Media: imgUrl, // Incluir la URL de media (si la hay)
+    };
+
+     console.log("Datos enviados al servidor:", requestBody);
+
+    const response = await axios.post(`${API_URL}/send-whatsapp/registro`, requestBody);
     return response.data;
+    
   } catch (error) {
-    console.error("Error registering campaign:", error);
+    console.error("Error registering campaign:", error.response?.data || error.message);
     throw error.response?.data || error;
+  } finally {
+    setLoading(false); // Desactivar el indicador de carga
   }
 };
+
 
 // // Función para obtener el resumen de WhatsApp usando la API local
 // export const getWhatsAppSummary = async () => {

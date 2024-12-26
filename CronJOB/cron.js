@@ -54,7 +54,7 @@ const CONFIG = {
   QUEUE_API_URL: 'http://188.245.38.255:5000/api/sendwhatsapp/colaenvio/?empresa=yego',
   CONFIRMATION_API_URL: 'http://188.245.38.255:5000/api/sendwhatsapp/envio',
   INSTANCES_API_URL: 'http://localhost:5000/api/instances',
-  SEND_MESSAGE_API_BASE_URL: 'https://apievo.3w.pe/message/sendText/',
+  SEND_MESSAGE_API_BASE_URL: 'https://apievo.3w.pe/message/',
 
   // Archivo de persistencia
   SENT_MESSAGES_FILE: path.join(__dirname, 'sentMessages.json'),
@@ -367,17 +367,32 @@ async function sendMessage(instance, messageData, attempt = 1) {
     await new Promise((res) => setTimeout(res, typingDelay));
 
     logger.info(`📤 [${instance.name}] Enviando mensaje a ${messageData.tenvio}`);
-    const response = await axios.post(
-      `${CONFIG.SEND_MESSAGE_API_BASE_URL}${instance.name}`,
-      {
+    const tipoValue = messageData.tipo === "texto" ? "sendText" : "sendMedia";
+    let requestBody = {};
+    if (messageData.tipo === "texto") {
+      requestBody = {
         number: messageData.tenvio,
         text: messageData.mensaje,
-      },
-      {
-        headers: { Apikey: instance.token },
-        timeout: 30_000,
-      }
-    );
+      };
+    } else if (messageData.tipo === "imagen" || messageData.tipo === "video") {
+      requestBody = {
+        number: messageData.tenvio,
+        mediatype: messageData.tipo === "imagen" ? "image" : "video",
+        mimetype: messageData.tipo === "imagen" ? "image/jpeg" : "video/mp4",
+        caption: messageData.mensaje,
+        media: messageData.media,
+        fileName: messageData.tipo === "imagen" ? "img.jpg" : "video.mp4",
+      };
+    }
+
+      const response = await axios.post(
+        `${CONFIG.SEND_MESSAGE_API_BASE_URL}${tipoValue}/${instance.name}`,
+        requestBody,
+        {
+          headers: { Apikey: instance.token },
+          timeout: 30_000,
+        }
+      ); 
 
     // Manejo de status
     if (response.status === 200 || response.status === 201) {
@@ -426,10 +441,10 @@ async function sendMessage(instance, messageData, attempt = 1) {
     }
   } finally {
     // Siempre quitar del set inProgressMessages
+     requestBody = {};
     inProgressMessages.delete(messageData.idSendmessage);
   }
 }
-
 /**
  * Confirma al API que el mensaje fue (o no) enviado correctamente.
  */
@@ -458,7 +473,6 @@ async function confirmMessageSend(statusCode, idSendmessage, instanceName) {
 async function manageInstanceSending(instance, flag) {
   while (flag.active) {
     const messageData = getNextQueueMessage();
-
     if (!messageData) {
       // No hay mensajes => esperamos un poco
       logger.info(`[${instance.name}] No hay mensajes en cola. Esperando ${CONFIG.POLLING_MESSAGE_INTERVAL / 1000}s...`);

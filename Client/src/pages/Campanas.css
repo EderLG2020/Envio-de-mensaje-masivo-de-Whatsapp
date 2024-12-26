@@ -537,3 +537,22 @@ input[type="file"] {
         margin-top: 60px;
     }
 }
+ 
+.divfileInputImagenVideo{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.fileInputImagenVideo {
+    cursor: pointer;
+    transition: ease 0.4s;
+    width: auto;
+    padding: 5px 0;
+    border-bottom: 2px solid rgb(0, 0, 0); 
+  }
+  
+  .fileInputImagenVideo:hover {
+    padding: 5px 6px;
+    border-bottom: 2px solid white; 
+  }
+  
