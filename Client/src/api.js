@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Base URL para la API
-const API_URL = "http://localhost:5000/api";
+const API_URL = "http://10.10.2.59:5000/api";
 // const API_URL = 'http://10.10.10.3:5000/api';
 
 // Función para obtener las instancias
@@ -145,6 +145,7 @@ export const registerCampaign = async (
 
       // Obtener la URL de la imagen subida
       imgUrl = imgResponse.data.url;
+
     }
 
     const requestBody = {
