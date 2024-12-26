@@ -379,7 +379,7 @@ async function sendMessage(instance, messageData, attempt = 1) {
         number: messageData.tenvio,
         mediatype: messageData.tipo === "imagen" ? "image" : "video",
         mimetype: messageData.tipo === "imagen" ? "image/jpeg" : "video/mp4",
-        caption: `<b>${messageData.titulo}</b><br>${messageData.mensaje}`,
+        caption: `*${messageData.titulo}*\n\n${messageData.mensaje}`,
         media: messageData.media,
         fileName: messageData.tipo === "imagen" ? "img.jpg" : "video.mp4",
       };
