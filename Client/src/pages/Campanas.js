@@ -25,7 +25,7 @@ function Campanas() {
   const [selectedType, setSelectedType] = useState("texto");
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFileImagenVideo, setSelectedFileImagenVideo] = useState(null);
-  const [media,setmedia]=useState("");
+  const [media, setmedia] = useState("");
   const [telefonosNombres, setTelefonosNombres] = useState([]);
   const [summaryData, setSummaryData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,7 +121,7 @@ function Campanas() {
 
   const handleTypeChange = (e) => {
     setSelectedType(e.target.value);
-    
+
   };
 
   const handleFileChange = (e) => {
@@ -129,7 +129,7 @@ function Campanas() {
     setmedia(file)
     setSelectedFileImagenVideo(file.name)
   };
-  
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -159,7 +159,7 @@ function Campanas() {
   };
 
   const validateFields = () => {
-    if (!campaignName || !campaignTitle || !campaignText || rowCount === 0) {
+    if (!campaignName ||  (selectedType !== 'texto' && !campaignTitle)  || !campaignText || rowCount === 0) {
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -238,7 +238,6 @@ function Campanas() {
         },
       });
       await fetchSummaryData(false); // Refrescar los datos después de cambiar el estado
-      console.log("Cambio exitoso", response.message);
     } catch (error) {
       Swal.fire({
         icon: "error",
@@ -423,6 +422,7 @@ function Campanas() {
           <a href="/plantilla.xlsx" download>
             <button className="descargar-btn">Descargar Plantilla</button>
           </a>
+          
         </div>
       </div>
       {loading ? (
@@ -529,16 +529,53 @@ function Campanas() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="campaignTitle">Título de la Campaña</label>
-                <input
-                  type="text"
-                  id="campaignTitle"
-                  placeholder="Título de la Campaña"
-                  value={campaignTitle}
-                  onChange={handleTitleChange}
-                  className="input-field"
-                />
+                <label htmlFor="tipo">Tipo de Campaña</label>
+                <select
+                  id="tipo"
+                  value={selectedType}
+                  onChange={handleTypeChange}
+                  className="select-field"
+                >
+                  <option value="texto">Texto</option>
+                  <option value="imagen">Imagen</option>
+                  <option value="video">Video</option>
+                </select>
+
+                {(selectedType === "imagen" || selectedType === "video") && (
+                  <div className="divfileInputImagenVideo">
+                    <label
+                      className="fileInputImagenVideo"
+                      htmlFor="file-upload-imagen-video"
+                      style={{ cursor: "pointer" }}
+                    >
+                      SELECCIONAR {selectedType}
+                    </label>
+                    <input
+                      onChange={handleFileChange}
+                      type="file"
+                      id="file-upload-imagen-video"
+                      accept={selectedType === 'imagen' ? "image/jpeg" : selectedType === 'video' ? "video/mp4" : ""}
+                    />
+                    <span className="file-selected">
+                      {selectedFileImagenVideo || "Sin archivos seleccionados"}
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {(selectedType === 'imagen' || selectedType === 'video') && (
+                <div className="form-group">
+                  <label htmlFor="campaignTitle">Título de la Campaña <span> ( Para Imagen o Video )</span></label>
+                  <input
+                    type="text"
+                    id="campaignTitle"
+                    placeholder="Título de la Campaña"
+                    value={campaignTitle}
+                    onChange={handleTitleChange}
+                    className="input-field"
+                  />
+                </div>
+              )}
 
               <div className="form-group">
                 <label htmlFor="campaignText">Contenido de la Campaña</label>
@@ -574,41 +611,6 @@ function Campanas() {
                   <p className="record-count">
                     Registros detectados: {rowCount}
                   </p>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="tipo">Tipo de Campaña</label>
-                <select
-                  id="tipo"
-                  value={selectedType}
-                  onChange={handleTypeChange}
-                  className="select-field"
-                >
-                  <option value="texto">Texto</option>
-                  <option value="imagen">Imagen</option>
-                  <option value="video">Video</option>
-                </select>
-
-                {(selectedType === "imagen" || selectedType === "video") && (
-                  <div className="divfileInputImagenVideo">
-                    <label
-                      className="fileInputImagenVideo"
-                      htmlFor="file-upload-imagen-video"
-                      style={{ cursor: "pointer" }}
-                    >
-                      Cargar {selectedType}
-                    </label>
-                    <input
-                      onChange={handleFileChange}
-                      type="file"
-                      id="file-upload-imagen-video"
-                      accept={selectedType === 'imagen' ? "image/jpeg" : selectedType === 'video' ? "video/mp4" : ""}
-                    />
-                    <span className="file-selected">
-                      {selectedFileImagenVideo || "Sin archivos seleccionados"}
-                    </span>
-                  </div>
                 )}
               </div>
 

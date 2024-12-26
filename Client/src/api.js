@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Base URL para la API
-const API_URL = "http://10.10.2.59:5000/api";
+const API_URL = "http://localhost:5000/api";
 // const API_URL = 'http://10.10.10.3:5000/api';
 
 // Función para obtener las instancias
@@ -145,7 +145,6 @@ export const registerCampaign = async (
 
       // Obtener la URL de la imagen subida
       imgUrl = imgResponse.data.url;
-      console.log("Imagen subida exitosamente. URL:", imgUrl);
     }
 
     const requestBody = {
@@ -158,8 +157,6 @@ export const registerCampaign = async (
       TelefonosNombres: telefonosNombres,
       Media: imgUrl, // Incluir la URL de media (si la hay)
     };
-
-     console.log("Datos enviados al servidor:", requestBody);
 
     const response = await axios.post(`${API_URL}/send-whatsapp/registro`, requestBody);
     return response.data;

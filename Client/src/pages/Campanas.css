@@ -302,7 +302,10 @@ label {
     font-weight: bold;
     margin-bottom: 5px;
 }
-
+label span{
+    color: #aaa;
+    font-size: 0.85em;
+}
 .input-field,
 .textarea-field,
 .select-field {
@@ -542,17 +545,19 @@ input[type="file"] {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 5px;
 }
 .fileInputImagenVideo {
+    background-color: var(--color-button-grey);
+    padding: 8px 15px;
+    border-radius: 5px;
     cursor: pointer;
-    transition: ease 0.4s;
+    transition: ease 0.2s;
     width: auto;
-    padding: 5px 0;
-    border-bottom: 2px solid rgb(0, 0, 0); 
+    text-transform: uppercase; 
+    white-space: nowrap;
   }
-  
   .fileInputImagenVideo:hover {
-    padding: 5px 6px;
-    border-bottom: 2px solid white; 
-  }
+    background-color: var(--color-login-grey);
+}
   
