@@ -137,7 +137,7 @@ export const registerCampaign = async (
       formImg.append("file", media);
 
       // Subir la imagen al servidor
-      const imgResponse = await axios.post("https://cloud.3w.pe/media", formImg, {
+      const imgResponse = await axios.post("https://cloud.3w.pe/media2", formImg, {
         headers: {
           'Content-Type': 'multipart/form-data', // Asegúrate de configurar el encabezado
         },
